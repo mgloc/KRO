@@ -44,7 +44,7 @@ class Horloge :
             return time.time() - self.time
 
 class Matrice_temporelle(Horloge) :
-    """Matrice contenant un couple de réel"""
+    """Matrice contenant des couples de réels"""
 
     def __init__(self,taille=(0,0)):
         self.x,self.y = taille
@@ -87,15 +87,68 @@ class Matrice_temporelle(Horloge) :
         else :
             self.matrice[a][b] = 0.0 
         
+class Noeud :
+
+    def __init__(self,x,y):
+        self.occupation = [] #liste temps
+        self.voisins = []
+        self.coord = x,y
+        self.have_armoire = False
+
+
+    def get_coord(self):
+        return self.coord
+
+class M_Graph :
+
+    def __init__(self,taille=(0,0)):
+        self.n,self.m = taille
+        
+        #Création du graph rempli de Noeud
+        self.matrice = [[0]*self.m]*self.n
+        for i in range (0,self.n) :
+            for j in range (0,self.m) :
+                self.matrice[i][j] = Noeud(i,j)
+
+        print(self.matrice[0][0].coord)
+        
+        #Remplissage des voisins verticaux et horizontaux de chaque Noeud
+        # for i in range(self.n):
+        #     for j in range(self.m):
+        #         noeudactuel = self.matrice[i][j]
+        #         voisins = []
+
+        #         try :
+        #             nord = self.matrice[i-1][j]
+        #             voisins.append(nord)
+        #         except IndexError :
+        #             pass
+
+        #         try :
+        #             sud = self.matrice[i+1][j]
+        #             voisins.append(sud)
+        #         except IndexError :
+        #             pass
+
+        #         try :
+        #             est = self.matrice[i][j+1]
+        #             voisins.append(est)
+        #         except IndexError :
+        #             pass
+
+        #         try :
+        #             ouest = self.matrice[i][j-1]
+        #             voisins.append(ouest)
+        #         except IndexError :
+        #             pass
+
+        #         noeudactuel.voisins = voisins
     
+                    
 
 
-#PROGRAMME :
+graph = M_Graph((2,2))
 
-main_clock = Horloge()
 
-matrice = Matrice_temporelle((1,1))
-matrice.set_case(0,0,10)
-time.sleep(2)
-print(matrice.get_matrice())
-matrice.get_time()
+print([i.coord for i in graph.matrice[0][0].voisins])
+
