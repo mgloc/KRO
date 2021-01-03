@@ -103,46 +103,51 @@ class M_Graph :
 
     def __init__(self,taille=(0,0)):
         self.n,self.m = taille
-        
-        #Création du graph rempli de Noeud
-        self.matrice = [[0]*self.m]*self.n
-        for i in range (0,self.n) :
-            for j in range (0,self.m) :
-                self.matrice[i][j] = Noeud(i,j)
 
-        print(self.matrice[0][0].coord)
+        self.matrice = []
+        for i in range(self.n) :
+            ligne = []
+            for j in range(self.m) :
+                ligne.append(Noeud(i,j))
+            self.matrice.append(ligne)
+
+        for i in range(self.n) :
+            for j in range(self.m) :
+                print(i,j,self.matrice[i][j].coord)
         
         #Remplissage des voisins verticaux et horizontaux de chaque Noeud
-        # for i in range(self.n):
-        #     for j in range(self.m):
-        #         noeudactuel = self.matrice[i][j]
-        #         voisins = []
+        for i in range(self.n):
+            for j in range(self.m):
+                noeudactuel = self.matrice[i][j]
+                voisins = []
+#TODO erreur a cause de l'indice des listes
+                try :
+                    if i >= 1 :
+                        nord = self.matrice[i-1][j]
+                        voisins.append(nord)
+                except IndexError :
+                    pass
 
-        #         try :
-        #             nord = self.matrice[i-1][j]
-        #             voisins.append(nord)
-        #         except IndexError :
-        #             pass
+                try :
+                    sud = self.matrice[i+1][j]
+                    voisins.append(sud)
+                except IndexError :
+                    pass
 
-        #         try :
-        #             sud = self.matrice[i+1][j]
-        #             voisins.append(sud)
-        #         except IndexError :
-        #             pass
+                try :
+                    est = self.matrice[i][j+1]
+                    voisins.append(est)
+                except IndexError :
+                    pass
 
-        #         try :
-        #             est = self.matrice[i][j+1]
-        #             voisins.append(est)
-        #         except IndexError :
-        #             pass
+                try :
+                    if j>= 1 :
+                        ouest = self.matrice[i][j-1]
+                        voisins.append(ouest)
+                except IndexError :
+                    pass
 
-        #         try :
-        #             ouest = self.matrice[i][j-1]
-        #             voisins.append(ouest)
-        #         except IndexError :
-        #             pass
-
-        #         noeudactuel.voisins = voisins
+                noeudactuel.voisins = voisins
     
                     
 
