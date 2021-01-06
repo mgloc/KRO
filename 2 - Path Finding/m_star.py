@@ -2,6 +2,7 @@
 import math as m
 import threading
 import time
+import sys
 
 #VARIABLES :
 caractères = [0, #Vide
@@ -17,15 +18,7 @@ matrice_test = [[0,0,0,0,0,0,0,0,0,0], #mettre des valeurs réelle estimation di
                 [0,"D",0,0,1,0,0,0,0,0],
                 [0,0,0,0,0,0,0,0,0,0],]
 
-
-#FONCTIONS :
-
-def manhattan(A,B):
-    xA,yA = A
-    xB,yB = B
-    return abs(xB-xA) + abs(yB-yA)
-
-#OBJETS :
+#CLASSES :
 
 class Horloge :
 
@@ -89,19 +82,24 @@ class Matrice_temporelle(Horloge) :
         
 class Noeud :
 
-    def __init__(self,x,y):
+    def __init__(self,x: int,y: int):
         self.occupation = [] #liste temps
         self.voisins = []
-        self.coord = x,y
+        self.coord = (x,y)
         self.have_armoire = False
 
 
     def get_coord(self):
-        return self.coord
+        return(self.coord)
+    
+    def manhattan(self,node: Noeud) :
+        x1,y1 = self.coord
+        x2,y2 = node.coord
+        return(abs(x2-x1) + abs(y2-y1))
 
 class M_Graph :
 
-    def __init__(self,taille=(0,0)):
+    def __init__(self,taille: tuple):
         self.n,self.m = taille
 
         self.matrice = []
@@ -110,17 +108,13 @@ class M_Graph :
             for j in range(self.m) :
                 ligne.append(Noeud(i,j))
             self.matrice.append(ligne)
-
-        for i in range(self.n) :
-            for j in range(self.m) :
-                print(i,j,self.matrice[i][j].coord)
         
         #Remplissage des voisins verticaux et horizontaux de chaque Noeud
         for i in range(self.n):
             for j in range(self.m):
                 noeudactuel = self.matrice[i][j]
                 voisins = []
-#TODO erreur a cause de l'indice des listes
+
                 try :
                     if i >= 1 :
                         nord = self.matrice[i-1][j]
@@ -149,11 +143,42 @@ class M_Graph :
 
                 noeudactuel.voisins = voisins
     
-                    
+#FONCTIONS :
+
+def h(node: Noeud, end_node: Noeud):
+    return node.manhattan(end_node)
+
+def pathfinder (start: tuple,end: tuple,graph: M_Graph) :
+    
+    start_node = graph.matrice[start]
+    end_node   = graph.matrice[end]
+    parent     = start_node
+
+    open_list = start_node.voisins
+    closed_list1 = []
+    closed_list2 = []
+
+    while open_list != [] :
+        
+        temp = open_list[0]
+        mini = (temp,temp.manhattan(end_node))
+        
+        if len(open_list) >= 2 :
+            for node in open_list[1:] :
+                if node.manhattan(end_node) <= mini[1] :
+                    pass
+
+
+
+        if node == end_node :
+            return None #Todo mettre le chemin complet
+
+        else :
+            pass
+
 
 
 graph = M_Graph((2,2))
 
 
 print([i.coord for i in graph.matrice[0][0].voisins])
-
