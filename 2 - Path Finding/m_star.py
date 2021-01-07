@@ -1,16 +1,18 @@
-#IMPORTS :
+# pylint: disable=unused-variable
+
+##############################: IMPORTS :#############################
 import math as m
 import threading
 import time
 import sys
 
-#VARIABLES :
+##############################: GLOBAL VARIABLES :###################
 caractères = [0, #Vide
               1, #Blocage
              "D",#Départ
              "A"]#Arrivée
 
-matrice_test = [[0,0,0,0,0,0,0,0,0,0], #mettre des valeurs réelle estimation distance durée + horloge
+matrice_test = [[0,0,0,0,0,0,0,0,0,0], 
                 [0,0,0,0,0,1,0,"A",0,0],
                 [0,0,0,0,0,1,0,0,0,0],
                 [0,0,0,0,0,1,0,0,0,0],
@@ -18,7 +20,7 @@ matrice_test = [[0,0,0,0,0,0,0,0,0,0], #mettre des valeurs réelle estimation di
                 [0,"D",0,0,1,0,0,0,0,0],
                 [0,0,0,0,0,0,0,0,0,0],]
 
-#CLASSES :
+#############################: CLASS :################################
 
 class Horloge :
 
@@ -86,15 +88,21 @@ class Noeud :
         self.occupation = [] #liste temps
         self.voisins = []
         self.coord = (x,y)
-        self.have_armoire = False
+        self.have_shelf = False
 
+        #M-Star
+        self.g = 0
+        self.h = 0
+        self.f = 0
+        self.straight_parent = False
 
-    def get_coord(self):
-        return(self.coord)
+    def reset_node(self):
+        self.g = self.h = self.f = 0
+        self.parent = None
     
-    def manhattan(self,node: Noeud) :
+    def manhattan(self,other) :
         x1,y1 = self.coord
-        x2,y2 = node.coord
+        x2,y2 = other.coord
         return(abs(x2-x1) + abs(y2-y1))
 
 class M_Graph :
@@ -143,42 +151,93 @@ class M_Graph :
 
                 noeudactuel.voisins = voisins
     
-#FONCTIONS :
+##############################: FUNCTIONS :############################
 
 def h(node: Noeud, end_node: Noeud):
     return node.manhattan(end_node)
 
-def pathfinder (start: tuple,end: tuple,graph: M_Graph) :
-    
-    start_node = graph.matrice[start]
-    end_node   = graph.matrice[end]
-    parent     = start_node
+def g(node: Noeud,parent: Noeud):
+    return parent.g + 1
 
-    open_list = start_node.voisins
+
+def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool) :
+
+    start_node   = graph.matrice[start]
+    start_node.g = start_node.h = start_node.f = 0
+
+    end_node   = graph.matrice[end]
+    end_node.g = end_node.h = end_node.f = 0
+
+    open_list    = []
     closed_list1 = []
     closed_list2 = []
 
-    while open_list != [] :
+    open_list.append(start_node)
+
+    while len(open_list) > 0 :
         
-        temp = open_list[0]
-        mini = (temp,temp.manhattan(end_node))
-        
-        if len(open_list) >= 2 :
-            for node in open_list[1:] :
-                if node.manhattan(end_node) <= mini[1] :
-                    pass
+        # Get the current node
+        current_node  = start_node
+        current_index = 0
+        for index, node in enumerate(open_list):
+            if node.f < current_node.f:
+                current_node  = node
+                current_index = index
+
+        open_list.pop(current_index)
+        closed_list1.append(current_node)
+
+        # Found the goal
+        if current_node == end_node:
+            path = []
+            current = current_node
+            while current is not None:
+                path.append(current.coord)
+                current = current.parent
+            return path[::-1]
+
+        # Children
+        children = []
+        for node in current_node.voisins :
+            
+            #Get rid of any shelf conflict 
+            if not(shelf and node.have_shelf) :
+                continue
+
+            #Check if occupied in time range
+            #TODO
+
+            #Append
+            children.append(node)
+
+        # Loop through children
+        for child in children:
+            
+            # Child is on the closed list
+            for closed_child in closed_list1:
+                if child == closed_child:
+                    continue
+
+                # Create the f, g, and h values
+                child.g = g(child,current_node)
+                child.h = h(child,end_node)
+                child.f = child.g + child.h
+
+                # Child is already in the open list
+                for open_node in open_list:
+                    if child == open_node and child.g > open_node.g:
+                        continue
+
+                # Add the child to the open list
+                open_list.append(child)
 
 
 
-        if node == end_node :
-            return None #Todo mettre le chemin complet
-
-        else :
-            pass
 
 
+##############################: PROGRAM :#############################
 
-graph = M_Graph((2,2))
-
-
-print([i.coord for i in graph.matrice[0][0].voisins])
+if __name__ == "__main__":
+    
+    graph = M_Graph((2,2))
+    print([i.coord for i in graph.matrice[0][0].voisins])
