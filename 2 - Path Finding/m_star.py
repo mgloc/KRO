@@ -3,6 +3,7 @@ import math as m
 import threading
 import time
 import sys
+import database
 
 ##############################: GLOBAL VARIABLES :###################
 caractères = [0, #Vide
@@ -20,66 +21,18 @@ matrice_test = [[0,0,0,0,0,0,0,0,0,0],
 
 #############################: CLASS :###############################
 
-class Horloge :
+class Clock(threading.Thread) :
+    def __init__(self):
+        threading.Thread.__init__(self)
+        self.time = 0
+        self.is_running = True
 
-    def __init__(self) :
-        self.set_time()
-        print("Horloge initialisée à {}".format(self.time))
+    def run(self) :
+        print("Clock started")
+        while is_running :
+            time.sleep(0.100000)
+            self.time += 1
 
-    def set_time(self) :
-        self.time = time.time()
-    
-    def get_time(self,rounded=True) :
-        """Récupère le temps écoulé depuis le dernier set_time"""
-        if rounded :
-            return round(time.time() - self.time, 3)
-        else :
-            return time.time() - self.time
-
-class Matrice_temporelle(Horloge) :
-    """Matrice contenant des couples de réels"""
-
-    def __init__(self,taille=(0,0)):
-        self.x,self.y = taille
-        self.matrice = [[0.0]*self.x]*self.y
-        self.set_time()
-    
-    def send_trajectory(self,liste):
-        """Fonction qui reçoit une liste de couple (case,temps de mouvement estimé pour se déplacer à la case) et qui l'ajoute à la matrice"""
-        temps = 0
-        tmp_bool = True  ##Ici le booléen temporaire permet d'actualiser la matrice seulement une fois pour get_case()
-        for (case,tm) in liste :
-            i,j = case
-            valcase = self.get_case(i,j,tmp_bool)
-            self.set_case(i,j,valcase + temps + tm)
-            temps += tm
-            tmp_bool = False
-
-
-    def actualiser(self):
-        """Fonction qui retire le temps qui s'est écoulé à toute la matrice"""
-        delta = self.get_time()
-        for i in range(self.x) :
-            for j in range(self.y) :
-                case = self.matrice[i][j]
-                self.set_case(i,j,round(case - delta,3))
-
-    def get_case(self,a,b,boole=True) :
-        if boole :
-            self.actualiser()
-        return self.matrice[a][b]
-
-    def get_matrice(self) :
-        self.actualiser()
-        return self.matrice
-
-    def set_case(self,a,b,x):
-        #Pas besoin d'actualiser ici
-        if x >= 0.0 :
-            self.matrice[a][b] = x
-        else :
-            self.matrice[a][b] = 0.0 
-        
 class Noeud :
 
     def __init__(self,x: int,y: int):
@@ -91,6 +44,7 @@ class Noeud :
         #M-Star
         self.g = 0
         self.h = 0
+        self.t = 0
         self.f = 0
         self.straight_parent = False
 
@@ -105,6 +59,18 @@ class Noeud :
         x1,y1 = self.coord
         x2,y2 = other.coord
         return(abs(x2-x1) + abs(y2-y1))
+    
+    def is_occupied(self,g) : #TODO fusionner is_occupied avec near_freetime 
+        segment = (g - database.margin_error, g + database.margin_error)
+        return intersection_is_empty(segment,self.occupation)
+    
+    def near_freetime(self,tot) :
+        n = len(self.occupation)
+        segment = (tot - database.margin_error, tot + database.margin_error + database.max_move)
+        for (index,temps) in enumerate(self.occupation) :
+            pass
+
+
 
 class M_Graph :
 
@@ -170,8 +136,6 @@ def intersection_is_empty_list(segment:tuple,liste:list) :
     for segment2 in liste :
         temp_bool = temp_bool and intersection_is_empty(segment,segment2)
         
-
-
 ##############################: PATHFINDING FUNCTIONS :################
 
 def h(node: Noeud, end_node: Noeud):
@@ -190,12 +154,13 @@ def return_path(current_node):
 
 def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool =False) :
 
+    # Create start and end node
     start_node   = graph.matrice[start[0]][start[1]]
     start_node.g = start_node.h = start_node.f = 0
-
     end_node   = graph.matrice[end[0]][end[1]]
     end_node.g = end_node.h = end_node.f = 0
 
+    # Initialize both open and closed list
     open_list    = []
     closed_list = []
 
@@ -206,6 +171,7 @@ def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool =False) :
     outer_iterations = 0
     max_iterations = (graph.m * graph.n // 2)
 
+    # Loop until find the end
     while len(open_list) > 0 :
         outer_iterations += 1
 
@@ -221,7 +187,7 @@ def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool =False) :
                 current_node  = node
                 current_index = index
 
-        open_list.pop(current_index)
+        open_list.pop(current_index)    #O(1) en recherche
         closed_list.append(current_node)
 
         # Found the goal
@@ -236,9 +202,6 @@ def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool =False) :
             if shelf and node.have_shelf :
                 continue
 
-            #Check if occupied in time range
-            #TODO
-
             #Append
             children.append(node)
 
@@ -249,14 +212,25 @@ def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool =False) :
             if len([closed_child for closed_child in closed_list if closed_child == child]) > 0:
                 continue
 
-            # Create the f, g, and h values
-            child.g = g(child,current_node)
-            child.h = h(child,end_node)
-            child.f = child.g + child.h
-
             # Child is already in the open list
             if len([open_node for open_node in open_list if child.position == open_node.position and child.g > open_node.g]) > 0:
                 continue
+
+            # Consider the parent node
+            parent = current_node
+
+            # Straight Parents #TODO
+            straight_score = 0 #temp
+
+            # Child is occupied
+            if child.is_occupied(straight_score + g) :
+                pass #TODO
+
+
+            # Create the f, g, and h values
+            child.g = g(child,current_node)
+            child.h = h(child,end_node)
+            child.f = child.g + child.h + child.t
 
             # Add the child to the open list
             open_list.append(child)
