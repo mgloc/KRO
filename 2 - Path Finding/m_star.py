@@ -1,6 +1,4 @@
-# pylint: disable=unused-variable
-
-##############################: IMPORTS :#############################
+##############################: IMPORTS :############################
 import math as m
 import threading
 import time
@@ -20,7 +18,7 @@ matrice_test = [[0,0,0,0,0,0,0,0,0,0],
                 [0,"D",0,0,1,0,0,0,0,0],
                 [0,0,0,0,0,0,0,0,0,0],]
 
-#############################: CLASS :################################
+#############################: CLASS :###############################
 
 class Horloge :
 
@@ -96,6 +94,9 @@ class Noeud :
         self.f = 0
         self.straight_parent = False
 
+    def __eq__(self, other):
+        return self.coord == other.coord
+
     def reset_node(self):
         self.g = self.h = self.f = 0
         self.parent = None
@@ -151,7 +152,27 @@ class M_Graph :
 
                 noeudactuel.voisins = voisins
     
-##############################: FUNCTIONS :############################
+##############################: GENERAL FUNCTIONS :####################
+
+def intersection_is_empty(segment1:tuple,semgment2:tuple) :
+    """
+    return True if the intersection beetween the two given segments is empty
+    """
+    i1,i2 = segment1
+    j1,j2 = semgment2
+    return (i2 <= j1) or (j2 <= i1)
+
+def intersection_is_empty_list(segment:tuple,liste:list) :
+    """
+    return True if the intersection beetween the given segment and the union of the other listed segment is empty
+    """
+    temp_bool = True
+    for segment2 in liste :
+        temp_bool = temp_bool and intersection_is_empty(segment,segment2)
+        
+
+
+##############################: PATHFINDING FUNCTIONS :################
 
 def h(node: Noeud, end_node: Noeud):
     return node.manhattan(end_node)
@@ -159,22 +180,38 @@ def h(node: Noeud, end_node: Noeud):
 def g(node: Noeud,parent: Noeud):
     return parent.g + 1
 
+def return_path(current_node):
+    path = []
+    current = current_node
+    while current is not None:
+        path.append(current.position)
+        current = current.parent
+    return path[::-1]  # Return reversed path
 
-def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool) :
+def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool =False) :
 
-    start_node   = graph.matrice[start]
+    start_node   = graph.matrice[start[0]][start[1]]
     start_node.g = start_node.h = start_node.f = 0
 
-    end_node   = graph.matrice[end]
+    end_node   = graph.matrice[end[0]][end[1]]
     end_node.g = end_node.h = end_node.f = 0
 
     open_list    = []
-    closed_list1 = []
-    closed_list2 = []
+    closed_list = []
+
 
     open_list.append(start_node)
 
+    # Adding a stop condition
+    outer_iterations = 0
+    max_iterations = (graph.m * graph.n // 2)
+
     while len(open_list) > 0 :
+        outer_iterations += 1
+
+        #If program has reach max search
+        if outer_iterations > max_iterations:
+          return None
         
         # Get the current node
         current_node  = start_node
@@ -185,23 +222,18 @@ def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool) :
                 current_index = index
 
         open_list.pop(current_index)
-        closed_list1.append(current_node)
+        closed_list.append(current_node)
 
         # Found the goal
         if current_node == end_node:
-            path = []
-            current = current_node
-            while current is not None:
-                path.append(current.coord)
-                current = current.parent
-            return path[::-1]
+            return return_path(current_node)
 
         # Children
         children = []
         for node in current_node.voisins :
             
             #Get rid of any shelf conflict 
-            if not(shelf and node.have_shelf) :
+            if shelf and node.have_shelf :
                 continue
 
             #Check if occupied in time range
@@ -214,26 +246,20 @@ def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool) :
         for child in children:
             
             # Child is on the closed list
-            for closed_child in closed_list1:
-                if child == closed_child:
-                    continue
+            if len([closed_child for closed_child in closed_list if closed_child == child]) > 0:
+                continue
 
-                # Create the f, g, and h values
-                child.g = g(child,current_node)
-                child.h = h(child,end_node)
-                child.f = child.g + child.h
+            # Create the f, g, and h values
+            child.g = g(child,current_node)
+            child.h = h(child,end_node)
+            child.f = child.g + child.h
 
-                # Child is already in the open list
-                for open_node in open_list:
-                    if child == open_node and child.g > open_node.g:
-                        continue
+            # Child is already in the open list
+            if len([open_node for open_node in open_list if child.position == open_node.position and child.g > open_node.g]) > 0:
+                continue
 
-                # Add the child to the open list
-                open_list.append(child)
-
-
-
-
+            # Add the child to the open list
+            open_list.append(child)
 
 ##############################: PROGRAM :#############################
 
