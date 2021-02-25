@@ -44,9 +44,9 @@ class Noeud :
         #M-Star
         self.g = 0
         self.h = 0
-        self.t = 0
         self.f = 0
         self.straight_parent = False
+        self.wait = 0
 
     def __eq__(self, other):
         return self.coord == other.coord
@@ -60,15 +60,30 @@ class Noeud :
         x2,y2 = other.coord
         return(abs(x2-x1) + abs(y2-y1))
     
-    def is_occupied(self,g) : #TODO fusionner is_occupied avec near_freetime 
-        segment = (g - database.margin_error, g + database.margin_error)
-        return intersection_is_empty(segment,self.occupation)
-    
-    def near_freetime(self,tot) :
+    def minimum_waiting_time(self,total_time):
+        if self.occupation == [] :
+            return 0
+        delta = (database.margin_error + database.max_move)/2
+        segment =(total_time-delta,total_time+delta)
+        
+        if total_time + delta <= self.occupation[0][0] :
+            return 0
+        
         n = len(self.occupation)
-        segment = (tot - database.margin_error, tot + database.margin_error + database.max_move)
-        for (index,temps) in enumerate(self.occupation) :
-            pass
+        for i in range(0,n-1) :
+            act = self.occupation[i]
+            nxt = self.occupation[i+1]
+
+            if act[1] <= total_time :
+                continue
+
+            elif act[1] + 2*delta <= nxt[0] :
+                return (act[1]-total_time)
+        
+        return (self.occupation[-1][1]-total_time)
+            
+
+
 
 
 
@@ -148,11 +163,15 @@ def return_path(current_node):
     path = []
     current = current_node
     while current is not None:
-        path.append(current.position)
+        path.append(current.position,current.wait)
         current = current.parent
     return path[::-1]  # Return reversed path
 
+
 def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool =False) :
+
+    #! Peut-être actualiser toute les listes temps d'occupation des noeuds
+    virtual_node_list = [] #? Sans doute inutile (si le noeud est stackable dans la open list)
 
     # Create start and end node
     start_node   = graph.matrice[start[0]][start[1]]
@@ -161,7 +180,7 @@ def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool =False) :
     end_node.g = end_node.h = end_node.f = 0
 
     # Initialize both open and closed list
-    open_list    = []
+    open_list   = []
     closed_list = []
 
 
@@ -171,7 +190,7 @@ def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool =False) :
     outer_iterations = 0
     max_iterations = (graph.m * graph.n // 2)
 
-    # Loop until find the end
+    #! Loop until find the end
     while len(open_list) > 0 :
         outer_iterations += 1
 
@@ -205,7 +224,7 @@ def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool =False) :
             #Append
             children.append(node)
 
-        # Loop through children
+        #! Loop through children
         for child in children:
             
             # Child is on the closed list
@@ -219,18 +238,25 @@ def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool =False) :
             # Consider the parent node
             parent = current_node
 
+            #Valeur à ajouter à la fin au g du noeud
+            plusvalue = 0
             # Straight Parents #TODO
             straight_score = 0 #temp
+            plusvalue += straight_score
 
             # Child is occupied
-            if child.is_occupied(straight_score + g) :
-                pass #TODO
+            delta = minimum_waiting_time(straight_score + g)
+            if delta != 0 :
+                x,y = child.coord
+                occupied_node = Noeud(x,y)
+                occupied_node.voisins = child.voisins
+                plusvalue += delta
 
 
             # Create the f, g, and h values
-            child.g = g(child,current_node)
+            child.g = g(child,current_node) + plusvalue
             child.h = h(child,end_node)
-            child.f = child.g + child.h + child.t
+            child.f = child.g + child.h
 
             # Add the child to the open list
             open_list.append(child)
