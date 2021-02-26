@@ -46,6 +46,10 @@ class Noeud :
         self.wait = 0
         self.parent = None
 
+    def __repr__(self):
+        x,y = self.coord
+        return ("Noeud({},{})".format(x,y))
+
     def __eq__(self, other):
         return self.coord == other.coord
 
@@ -80,8 +84,10 @@ class Noeud :
         
         return (self.occupation[-1][1]-total_time)
             
-
 class M_Graph :
+
+    def __repr__(self):
+        return ("Graph({},{})".format(self.n,self.m) )
 
     def __init__(self,taille: tuple):
         self.n,self.m = taille
@@ -171,7 +177,7 @@ def return_path(current_node):
     path = []
     current = current_node
     while current is not None:
-        path.append(current.position,current.wait)
+        path.append((current.coord,current.wait))
         current = current.parent
     return path[::-1]  # Return reversed path
 
@@ -193,13 +199,16 @@ def get_straight_score(child:Noeud,parent:Noeud,starting_node:Noeud) :
 def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool =False) :
 
     #! Peut-être actualiser toute les listes temps d'occupation des noeuds
-    virtual_node_list = [] #? Sans doute inutile (si le noeud est stackable dans la open list)
 
     # Create start and end node
     start_node   = graph.matrice[start[0]][start[1]]
     start_node.g = start_node.h = start_node.f = 0
     end_node   = graph.matrice[end[0]][end[1]]
     end_node.g = end_node.h = end_node.f = 0
+
+    # Get the current node
+    current_node  = start_node
+    current_index = 0
 
     # Initialize both open and closed list
     open_list   = []
@@ -218,11 +227,10 @@ def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool =False) :
 
         #If program has reach max search
         if outer_iterations > max_iterations:
-          return None
+            print("giving up on pathfinding too many iterations")
+            return return_path(current_node)  
         
         # Get the current node
-        current_node  = start_node
-        current_index = 0
         for index, node in enumerate(open_list):
             if node.f < current_node.f:
                 current_node  = node
@@ -243,7 +251,7 @@ def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool =False) :
             if shelf and node.have_shelf :
                 continue
 
-            #Check if this node is not obstruated
+            #Skip if this node is not obstruated
             if not(node.accessible) :
                 continue
 
@@ -258,7 +266,7 @@ def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool =False) :
                 continue
 
             # Child is already in the open list
-            if len([open_node for open_node in open_list if child.position == open_node.position and child.g > open_node.g]) > 0:
+            if len([open_node for open_node in open_list if child == open_node and child.g > open_node.g]) > 0:
                 continue
 
             # Consider the parent node
@@ -271,7 +279,7 @@ def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool =False) :
             plusvalue = get_straight_score(child,parent,start_node)
 
             # Child is occupied
-            delta = minimum_waiting_time(straight_score + g)
+            delta = child.minimum_waiting_time(parent.g)
             if delta != 0 :
                 x,y = child.coord
                 occupied_node = Noeud(x,y)
@@ -295,4 +303,5 @@ if __name__ == "__main__":
     
     graph = M_Graph((7,10))
     graph.fill_with_matrix(matrice_test)
+    print(database.size)
     print(pathfinder((0,0),(6,9),graph))
