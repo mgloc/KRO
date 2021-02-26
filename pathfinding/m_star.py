@@ -6,17 +6,13 @@ import sys
 import database
 
 ##############################: GLOBAL VARIABLES :###################
-caractères = [0, #Vide
-              1, #Blocage
-             "D",#Départ
-             "A"]#Arrivée
 
 matrice_test = [[0,0,0,0,0,0,0,0,0,0], 
-                [0,0,0,0,0,1,0,"A",0,0],
                 [0,0,0,0,0,1,0,0,0,0],
                 [0,0,0,0,0,1,0,0,0,0],
                 [0,0,0,0,0,1,0,0,0,0],
-                [0,"D",0,0,1,0,0,0,0,0],
+                [0,0,0,0,0,1,0,0,0,0],
+                [0,0,0,0,1,0,0,0,0,0],
                 [0,0,0,0,0,0,0,0,0,0],]
 
 #############################: CLASS :###############################
@@ -40,6 +36,7 @@ class Noeud :
         self.voisins = []
         self.coord = (x,y)
         self.have_shelf = False
+        self.accessible = True
 
         #M-Star
         self.g = 0
@@ -47,6 +44,7 @@ class Noeud :
         self.f = 0
         self.straight_parent = False
         self.wait = 0
+        self.parent = None
 
     def __eq__(self, other):
         return self.coord == other.coord
@@ -82,10 +80,6 @@ class Noeud :
         
         return (self.occupation[-1][1]-total_time)
             
-
-
-
-
 
 class M_Graph :
 
@@ -132,6 +126,20 @@ class M_Graph :
                     pass
 
                 noeudactuel.voisins = voisins
+
+    def fill_with_matrix(self,matrix) :
+        if matrix == [] :
+            raise NameError("An empty matrix was given")
+
+        if self.n != len(matrix) or self.m != len(matrix[0]) :
+            raise NameError("Dimensions are uncompatible \n Matrix : {},{} Graph : {},{}".format(len(matrix),len(matrix[0]),self.n,self.m))
+
+        for i in range(self.n) :
+            for j in range(self.m) :
+                if matrix[i][j] == 1 :
+                    self.matrice[i][j].accessible == False
+                else :
+                    self.matrice[i][j].accessible == True
     
 ##############################: GENERAL FUNCTIONS :####################
 
@@ -154,10 +162,10 @@ def intersection_is_empty_list(segment:tuple,liste:list) :
 ##############################: PATHFINDING FUNCTIONS :################
 
 def h(node: Noeud, end_node: Noeud):
-    return node.manhattan(end_node)
+    return node.manhattan(end_node)*database.horizontally_move_time
 
 def g(node: Noeud,parent: Noeud):
-    return parent.g + 1
+    return parent.g + database.horizontally_move_time
 
 def return_path(current_node):
     path = []
@@ -167,6 +175,20 @@ def return_path(current_node):
         current = current.parent
     return path[::-1]  # Return reversed path
 
+def get_straight_score(child:Noeud,parent:Noeud,starting_node:Noeud) :
+    
+    if parent == starting_node :
+        return 0
+
+    pparent = parent.parent
+
+    x1,y1   = child.coord - parent.coord
+    x2,y2   = pparent.coord - parent.coord
+
+    if x1 != x2 and y1 != y2 :
+        return database.rotation_move_time
+    
+    return 0
 
 def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool =False) :
 
@@ -221,6 +243,10 @@ def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool =False) :
             if shelf and node.have_shelf :
                 continue
 
+            #Check if this node is not obstruated
+            if not(node.accessible) :
+                continue
+
             #Append
             children.append(node)
 
@@ -240,9 +266,9 @@ def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool =False) :
 
             #Valeur à ajouter à la fin au g du noeud
             plusvalue = 0
-            # Straight Parents #TODO
-            straight_score = 0 #temp
-            plusvalue += straight_score
+
+            # Straight Parents
+            plusvalue = get_straight_score(child,parent,start_node)
 
             # Child is occupied
             delta = minimum_waiting_time(straight_score + g)
@@ -250,11 +276,13 @@ def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool =False) :
                 x,y = child.coord
                 occupied_node = Noeud(x,y)
                 occupied_node.voisins = child.voisins
+                occupied_node.wait += delta
                 plusvalue += delta
 
+                child = occupied_node #On ne considère plus le noeud enfant de base
 
             # Create the f, g, and h values
-            child.g = g(child,current_node) + plusvalue
+            child.g = g(child,parent) + plusvalue
             child.h = h(child,end_node)
             child.f = child.g + child.h
 
@@ -265,5 +293,6 @@ def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool =False) :
 
 if __name__ == "__main__":
     
-    graph = M_Graph((2,2))
-    print([i.coord for i in graph.matrice[0][0].voisins])
+    graph = M_Graph((7,10))
+    graph.fill_with_matrix(matrice_test)
+    print(pathfinder((0,0),(6,9),graph))
