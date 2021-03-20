@@ -7,13 +7,13 @@ import database
 
 ##############################: GLOBAL VARIABLES :###################
 
-matrice_test = [[0,0,0,0,0,0,0,0,0,0], 
-                [0,0,0,0,0,1,0,0,0,0],
-                [0,0,0,0,0,1,0,0,0,0],
-                [0,0,0,0,0,1,0,0,0,0],
-                [0,0,0,0,0,1,0,0,0,0],
-                [0,0,0,0,1,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0,0,0],]
+matrice_test = [[0,0,0,0,0,1,0,0,0,0], 
+                [0,0,0,0,0,1,0,1,0,0],
+                [0,0,0,0,0,1,0,0,0,1],
+                [0,1,1,1,1,1,0,1,0,0],
+                [0,0,0,1,0,0,0,1,0,0],
+                [1,0,1,1,1,0,1,1,0,0],
+                [0,0,0,0,0,0,1,0,0,0],]
 
 #############################: CLASS :###############################
 
@@ -133,7 +133,7 @@ class M_Graph :
 
                 noeudactuel.voisins = voisins
 
-    def fill_with_matrix(self,matrix) :
+    def fill_with_matrix(self,matrix) : #BUG ça marche étonnament pas ?
         if matrix == [] :
             raise NameError("An empty matrix was given")
 
@@ -143,9 +143,9 @@ class M_Graph :
         for i in range(self.n) :
             for j in range(self.m) :
                 if matrix[i][j] == 1 :
-                    self.matrice[i][j].accessible == False
+                    self.matrice[i][j].accessible = False
                 else :
-                    self.matrice[i][j].accessible == True
+                    self.matrice[i][j].accessible = True
     
 ##############################: GENERAL FUNCTIONS :####################
 
@@ -188,8 +188,10 @@ def get_straight_score(child:Noeud,parent:Noeud,starting_node:Noeud) :
 
     pparent = parent.parent
 
-    x1,y1   = child.coord - parent.coord
-    x2,y2   = pparent.coord - parent.coord
+    x1   = child.coord[0] - parent.coord[0]
+    y1   = child.coord[1] - parent.coord[1]
+    x2   = pparent.coord[0] - parent.coord[0]
+    y2   = pparent.coord[1] - parent.coord[1]
 
     if x1 != x2 and y1 != y2 :
         return database.rotation_move_time
@@ -219,7 +221,7 @@ def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool =False) :
 
     # Adding a stop condition
     outer_iterations = 0
-    max_iterations = (graph.m * graph.n // 2)
+    max_iterations = (graph.m * graph.n)
 
     #! Loop until find the end
     while len(open_list) > 0 :
@@ -228,7 +230,9 @@ def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool =False) :
         #If program has reach max search
         if outer_iterations > max_iterations:
             print("giving up on pathfinding too many iterations")
-            return return_path(current_node)  
+            return return_path(current_node)
+        
+        current_node = open_list[0]  #BUG FIX : perpetual Node(0,0)
         
         # Get the current node
         for index, node in enumerate(open_list):
@@ -236,7 +240,7 @@ def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool =False) :
                 current_node  = node
                 current_index = index
 
-        open_list.pop(current_index)    #O(1) en recherche
+        open_list.remove(current_node)    #O(1) en recherche
         closed_list.append(current_node)
 
         # Found the goal
@@ -294,6 +298,9 @@ def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool =False) :
             child.h = h(child,end_node)
             child.f = child.g + child.h
 
+            # Add the child parent
+            child.parent = parent
+
             # Add the child to the open list
             open_list.append(child)
 
@@ -303,5 +310,4 @@ if __name__ == "__main__":
     
     graph = M_Graph((7,10))
     graph.fill_with_matrix(matrice_test)
-    print(database.size)
     print(pathfinder((0,0),(6,9),graph))
