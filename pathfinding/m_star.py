@@ -7,13 +7,13 @@ import database
 
 ##############################: GLOBAL VARIABLES :###################
 
-matrice_test = [[0,0,0,0,0,1,0,0,0,0], 
-                [0,0,0,0,0,1,0,1,0,0],
-                [0,0,0,0,0,1,0,0,0,1],
-                [0,1,1,1,1,1,0,1,0,0],
-                [0,0,0,1,0,0,0,1,0,0],
-                [1,0,1,1,1,0,1,1,0,0],
-                [0,0,0,0,0,0,1,0,0,0],]
+matrice_test = [[0,0,0,0,0,0,0,0,0,0], 
+                [0,0,0,0,0,0,0,0,0,0],
+                [0,0,0,0,0,0,0,0,0,0],
+                [0,0,0,0,0,0,0,0,0,0],
+                [0,0,0,0,0,0,0,0,0,0],
+                [0,0,0,0,0,0,0,0,0,0],
+                [0,0,0,0,0,0,0,0,0,0],]
 
 #############################: CLASS :###############################
 
@@ -26,7 +26,7 @@ class Clock(threading.Thread) :
     def run(self) :
         print("Clock started")
         while is_running :
-            time.sleep(0.100000)
+            time.sleep(0.1)
             self.time += 1
 
 class Noeud :
@@ -91,15 +91,23 @@ class M_Graph :
 
     def __init__(self,taille: tuple):
         self.n,self.m = taille
-
         self.matrice = []
-        for i in range(self.n) :
-            ligne = []
-            for j in range(self.m) :
-                ligne.append(Noeud(i,j))
-            self.matrice.append(ligne)
-        
-        #Remplissage des voisins verticaux et horizontaux de chaque Noeud
+
+        self.fill_node_auto()
+        self.fill_voisins_auto()
+
+    def fill_node_auto(self) :
+        if self.matrice != [] :
+            raise NameError("Cette fonction est uniquement executable à l'initialisation d'un graph vide")
+
+        else :    
+            for i in range(self.n) :
+                ligne = []
+                for j in range(self.m) :
+                    ligne.append(Noeud(i,j))
+                self.matrice.append(ligne)
+
+    def fill_voisins_auto(self):
         for i in range(self.n):
             for j in range(self.m):
                 noeudactuel = self.matrice[i][j]
@@ -133,37 +141,54 @@ class M_Graph :
 
                 noeudactuel.voisins = voisins
 
-    def fill_with_matrix(self,matrix) : #BUG ça marche étonnament pas ?
+    def compatibility_check(self,matrix) :
         if matrix == [] :
             raise NameError("An empty matrix was given")
+            return False
 
         if self.n != len(matrix) or self.m != len(matrix[0]) :
             raise NameError("Dimensions are uncompatible \n Matrix : {},{} Graph : {},{}".format(len(matrix),len(matrix[0]),self.n,self.m))
+            return False
+        return True
+      
+    def fill_with_matrix(self,matrix) :
+        if self.compatibility_check(matrix) :
 
-        for i in range(self.n) :
-            for j in range(self.m) :
-                if matrix[i][j] == 1 :
-                    self.matrice[i][j].accessible = False
-                else :
-                    self.matrice[i][j].accessible = True
+            for i in range(self.n) :
+                for j in range(self.m) :
+                    if matrix[i][j] == 1 :
+                        self.matrice[i][j].accessible = False
+                    else :
+                        self.matrice[i][j].accessible = True
     
-##############################: GENERAL FUNCTIONS :####################
+    def fill_occupation_with_matrix(self,matrix) :
+        if self.compatibility_check(matrix) :
 
-def intersection_is_empty(segment1:tuple,semgment2:tuple) :
-    """
-    return True if the intersection beetween the two given segments is empty
-    """
-    i1,i2 = segment1
-    j1,j2 = semgment2
-    return (i2 <= j1) or (j2 <= i1)
+            for i in range(self.n) :
+                for j in range(self.m) :
+                    liste_occupation = matrix[i][j]
+                    if liste_occupation != [] :
+                        current_node = self.matrice[i][j]
+                        current_node.occupation = liste_occupation
 
-def intersection_is_empty_list(segment:tuple,liste:list) :
-    """
-    return True if the intersection beetween the given segment and the union of the other listed segment is empty
-    """
-    temp_bool = True
-    for segment2 in liste :
-        temp_bool = temp_bool and intersection_is_empty(segment,segment2)
+    def fill_occupation_with_path(self,ppath) : #TODO
+
+        #get current clock
+        sum_time = 0 #<--putclockhere
+        n        = len(path)
+        for index,elem in enumerate(ppath) :
+            coord = elem[0]
+            if index < n-1 :
+                sum_time += ppath(index+1)[1] #get waiting time before accessing the next node
+            if index > 1 :
+                pass
+                #sum_time += straight_score(ppath(index-1)[0],ppath(index-2)[0]) #TODO Straight score à faire
+            
+        sum_time += database.horizontally_move_time
+        #TODO J'ai fait de la grosse D zebi
+        #TODO Creer un objet occupation avec une fonction ajout qui fout le truc dans le bon ordre
+        #TODO et mettre la func temps min dedans tant qu'on y est bordel
+        #self.matrice[i][j].occupation
         
 ##############################: PATHFINDING FUNCTIONS :################
 
