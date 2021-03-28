@@ -5,6 +5,8 @@ import time
 import sys
 import database
 
+#TODO GLOBAL : Créer un objet occupation et les fonctions usuelles qui vont avec
+
 ##############################: GLOBAL VARIABLES :###################
 
 matrice_test = [[0,0,0,0,0,0,0,0,0,0], 
@@ -16,6 +18,7 @@ matrice_test = [[0,0,0,0,0,0,0,0,0,0],
                 [0,0,0,0,0,0,0,0,0,0],]
 
 #############################: CLASS :###############################
+
 
 class Clock(threading.Thread) :
     def __init__(self):
@@ -29,10 +32,93 @@ class Clock(threading.Thread) :
             time.sleep(0.1)
             self.time += 1
 
-class Noeud :
+class occupation_list :
+    
+    def __init__(self) :
+        self.occupation = []
+        self.taille = 0
+    
+    def occupation_add(self,segment) :
+
+        x,y = segment[0],segment[1]
+
+        #Check the order of the given segment
+        if x > y :
+            segment = [y,x]
+            y,x = x,y
+        
+        if x==y :
+            raise NameError(f"The singleton {x} was furnished instead of a valid segment")
+            return None
+
+        #Check if the list is empty
+        if self.occupation == [] :
+            self.occupation.append(segment)
+            self.taille = 1
+            return None
+
+        #Loop through list
+        for i in range(self.taille) :
+            xi,yi = self.occupation[i][0],self.occupation[i][1]
+
+            if i==0 :
+                if y <= xi :
+                    self.occupation.insert(0,segment)
+                    self.taille += 1
+                    return None
+            
+            elif i==(self.taille-1) :
+                if yi <= x :
+                    self.occupation.append(segment)
+                    self.taille += 1
+                    return None
+            
+            else :
+                y1 = self.occupation[i-1][1]
+
+                if y1 <= x < y <= yi :
+                    self.occupation.insert(i,segment)
+                    self.taille += 1
+                    return None
+        
+        raise NameError("The intersection beetween the list and the segment is not empty")
+
+    def occupation_remove_min(self,t) :
+        temp_list = []
+        for i in range(self.taille) :
+            x,y = self.occupation[i][0],self.occupation[i][1]
+
+            if y <= t :
+                continue
+
+            elif x <= t :
+                temp_list.append([t,y])
+            
+            else :
+                temp_list.append([x,y])
+        
+        self.occupation = temp_list
+
+    def occupation_remove_min_and_actualise(self,t):
+        temp_list = []
+        for i in range(self.taille) :
+            x,y = self.occupation[i][0],self.occupation[i][1]
+
+            if y <= t :
+                continue
+
+            elif x <= t :
+                temp_list.append([0,y-t])
+            
+            else :
+                temp_list.append([x-t,y-t])
+        
+        self.occupation = temp_list
+
+class Node(occupation_list) :
 
     def __init__(self,x: int,y: int):
-        self.occupation = [] #liste temps
+        occupation_list.__init__(self)
         self.voisins = []
         self.coord = (x,y)
         self.have_shelf = False
@@ -48,7 +134,7 @@ class Noeud :
 
     def __repr__(self):
         x,y = self.coord
-        return ("Noeud({},{})".format(x,y))
+        return ("Node({},{})".format(x,y))
 
     def __eq__(self, other):
         return self.coord == other.coord
@@ -84,7 +170,7 @@ class Noeud :
         
         return (self.occupation[-1][1]-total_time)
             
-class M_Graph :
+class Graph :
 
     def __repr__(self):
         return ("Graph({},{})".format(self.n,self.m) )
@@ -104,7 +190,7 @@ class M_Graph :
             for i in range(self.n) :
                 ligne = []
                 for j in range(self.m) :
-                    ligne.append(Noeud(i,j))
+                    ligne.append(Node(i,j))
                 self.matrice.append(ligne)
 
     def fill_voisins_auto(self):
@@ -171,31 +257,31 @@ class M_Graph :
                         current_node = self.matrice[i][j]
                         current_node.occupation = liste_occupation
 
-    def fill_occupation_with_path(self,ppath) : #TODO
-
+    def fill_occupation_with_path(self,ppath) : #TODO Get clock
         #get current clock
         sum_time = 0 #<--putclockhere
         n        = len(path)
+
+        #Explore path
         for index,elem in enumerate(ppath) :
             coord = elem[0]
+            #Check if there is a neccessity to wait before accessing the next node
             if index < n-1 :
-                sum_time += ppath(index+1)[1] #get waiting time before accessing the next node
-            if index > 1 :
-                pass
-                #sum_time += straight_score(ppath(index-1)[0],ppath(index-2)[0]) #TODO Straight score à faire
+                sum_time += ppath[index+1][1] #get waiting time before accessing the next node
+            
+            #Check if there is a turn to access the following node
+            if 1 <= index < n-1 :
+                sum_time += get_straight_score_coord(ppath[index+1][0],coord,ppath[index-1][0])
             
         sum_time += database.horizontally_move_time
-        #TODO J'ai fait de la grosse D zebi
-        #TODO Creer un objet occupation avec une fonction ajout qui fout le truc dans le bon ordre
-        #TODO et mettre la func temps min dedans tant qu'on y est bordel
-        #self.matrice[i][j].occupation
+        self.matrice[i][j].occupation_add()
         
 ##############################: PATHFINDING FUNCTIONS :################
 
-def h(node: Noeud, end_node: Noeud):
+def h(node: Node, end_node: Node):
     return node.manhattan(end_node)*database.horizontally_move_time
 
-def g(node: Noeud,parent: Noeud):
+def g(node: Node,parent: Node):
     return parent.g + database.horizontally_move_time
 
 def return_path(current_node):
@@ -206,7 +292,18 @@ def return_path(current_node):
         current = current.parent
     return path[::-1]  # Return reversed path
 
-def get_straight_score(child:Noeud,parent:Noeud,starting_node:Noeud) :
+def get_straight_score_coord(coord1:tuple,coord2:tuple,coord3:tuple) :
+    x1 = coord1[0] - coord2[0]
+    y1 = coord1[1] - coord2[1]
+    x2 = coord3[0] - coord2[0]
+    y2 = coord3[1] - coord2[1]
+
+    if x1 != x2 and y1 != y2 :
+        return database.rotation_move_time
+    
+    return 0
+
+def get_straight_score_node(child:Node,parent:Node,starting_node:Node) :
     
     if parent == starting_node :
         return 0
@@ -223,7 +320,7 @@ def get_straight_score(child:Noeud,parent:Noeud,starting_node:Noeud) :
     
     return 0
 
-def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool =False) :
+def pathfinder (start: tuple,end: tuple,graph: Graph,shelf: bool =False) :
 
     #! Peut-être actualiser toute les listes temps d'occupation des noeuds
 
@@ -305,13 +402,13 @@ def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool =False) :
             plusvalue = 0
 
             # Straight Parents
-            plusvalue = get_straight_score(child,parent,start_node)
+            plusvalue = get_straight_score_node(child,parent,start_node)
 
             # Child is occupied
             delta = child.minimum_waiting_time(parent.g)
             if delta != 0 :
                 x,y = child.coord
-                occupied_node = Noeud(x,y)
+                occupied_node = Node(x,y)
                 occupied_node.voisins = child.voisins
                 occupied_node.wait += delta
                 plusvalue += delta
@@ -333,6 +430,6 @@ def pathfinder (start: tuple,end: tuple,graph: M_Graph,shelf: bool =False) :
 
 if __name__ == "__main__":
     
-    graph = M_Graph((7,10))
+    graph = Graph((7,10))
     graph.fill_with_matrix(matrice_test)
     print(pathfinder((0,0),(6,9),graph))
