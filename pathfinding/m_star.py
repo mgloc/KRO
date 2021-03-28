@@ -61,17 +61,15 @@ class occupation_list :
         for i in range(self.taille) :
             xi,yi = self.occupation[i][0],self.occupation[i][1]
 
-            if i==0 :
-                if y <= xi :
-                    self.occupation.insert(0,segment)
-                    self.taille += 1
-                    return None
+            if i==0 and y <= xi :
+                self.occupation.insert(0,segment)
+                self.taille += 1
+                return None
             
-            elif i==(self.taille-1) :
-                if yi <= x :
-                    self.occupation.append(segment)
-                    self.taille += 1
-                    return None
+            elif i==(self.taille-1) and yi <= x :
+                self.occupation.append(segment)
+                self.taille += 1
+                return None
             
             else :
                 y1 = self.occupation[i-1][1]
@@ -260,11 +258,13 @@ class Graph :
     def fill_occupation_with_path(self,ppath) : #TODO Get clock
         #get current clock
         sum_time = 0 #<--putclockhere
-        n        = len(path)
+        n        = len(ppath)
 
         #Explore path
         for index,elem in enumerate(ppath) :
+            initial_time = sum_time
             coord = elem[0]
+
             #Check if there is a neccessity to wait before accessing the next node
             if index < n-1 :
                 sum_time += ppath[index+1][1] #get waiting time before accessing the next node
@@ -273,8 +273,12 @@ class Graph :
             if 1 <= index < n-1 :
                 sum_time += get_straight_score_coord(ppath[index+1][0],coord,ppath[index-1][0])
             
-        sum_time += database.horizontally_move_time
-        self.matrice[i][j].occupation_add()
+            #Adding the linear movement
+            sum_time += database.horizontally_move_time
+            
+            #Adding the segment to the matrice
+            i,j = coord
+            self.matrice[i][j].occupation_add([initial_time,sum_time])
         
 ##############################: PATHFINDING FUNCTIONS :################
 
@@ -322,7 +326,9 @@ def get_straight_score_node(child:Node,parent:Node,starting_node:Node) :
 
 def pathfinder (start: tuple,end: tuple,graph: Graph,shelf: bool =False) :
 
-    #! Peut-être actualiser toute les listes temps d'occupation des noeuds
+    #TODO #1 Simples vérifications de dimensions
+
+    #TODO #2 Actualiser toute les listes temps d'occupation des noeuds
 
     # Create start and end node
     start_node   = graph.matrice[start[0]][start[1]]
@@ -367,7 +373,9 @@ def pathfinder (start: tuple,end: tuple,graph: Graph,shelf: bool =False) :
 
         # Found the goal
         if current_node == end_node:
-            return return_path(current_node)
+            final_path = return_path(current_node)
+            graph.fill_occupation_with_path(final_path)
+            return final_path
 
         # Children
         children = []
@@ -432,4 +440,5 @@ if __name__ == "__main__":
     
     graph = Graph((7,10))
     graph.fill_with_matrix(matrice_test)
-    print(pathfinder((0,0),(6,9),graph))
+    graph.fill_occupation_with_path([((0, 0), 0), ((0, 1), 0), ((0, 2), 0), ((0, 3), 0), ((0, 4), 0), ((0, 5), 0), ((0, 6), 0), ((0, 7), 0), ((0, 8), 0), ((0, 9), 0)])
+    print(pathfinder((1,0),(0,9),graph))
