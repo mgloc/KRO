@@ -5,8 +5,6 @@ import time
 import sys
 import database
 
-#TODO GLOBAL : Créer un objet occupation et les fonctions usuelles qui vont avec
-
 ##############################: GLOBAL VARIABLES :###################
 
 matrice_test = [[0,0,0,0,0,0,0,0,0,0], 
