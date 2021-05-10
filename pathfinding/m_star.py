@@ -8,9 +8,9 @@ import database
 ##############################: GLOBAL VARIABLES :###################
 
 matrice_test = [[0,0,0,0,0,0,0,0,0,0], 
-                [0,0,0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0,0,0],
+                [0,0,1,0,0,0,0,0,0,0],
+                [0,0,1,0,0,0,0,0,0,0],
+                [0,0,1,0,0,0,0,0,0,0],
                 [0,0,0,0,0,0,0,0,0,0],
                 [0,0,0,0,0,0,0,0,0,0],
                 [0,0,0,0,0,0,0,0,0,0],]
@@ -30,43 +30,75 @@ class Clock(threading.Thread) :
             time.sleep(0.1)
             self.time += 1
 
+class inf :
+
+    def __repr__(self) :
+        return "infinity"
+
+    def __eq__(self,other):
+        if type(other) == type(self) :
+            return True 
+        return False 
+    
+    def __gt__(self,other) :
+        if type(other) in [list,int,float] :
+            return True
+        if type(other) == inf :
+            return False
+        else :
+            raise TypeError("Problème de typage")
+
+    def __lt__(self,other):
+        if type(other) in [list,int,float,inf] :
+            return False
+        raise TypeError("Problème de typage")
+
+    def __le__(self,other):
+        return self.__lt__(other) or self.__eq__(other)
+    
+    def __ge__(self,other):
+        return self.__gt__(other) or self.__eq__(other)
+
 class occupation_list :
     
-    def __init__(self) :
-        self.occupation = []
-        self.taille = 0
+    def __init__(self,liste:list[list[int]]) :
+        self.occupation = liste
     
-    def occupation_add(self,segment) :
+    def __repr__(self):
+        return f"Occlist {self.occupation}"
+    
+    def occupation_add(self,segment) -> None :
+        """ On choisi ici de retourner une erreur si le segment est mal structuré
+        """
+
+        if len(segment) != 2 :
+            raise NameError(f"The segment {segment} is invalid (length != 2)")
 
         x,y = segment[0],segment[1]
 
-        #Check the order of the given segment
+        #Check the given segment
         if x > y :
-            segment = [y,x]
-            y,x = x,y
-        
+            raise NameError(f"The segment [{x},{y}] was furnished instead of a valid segment at node {self}")
+            return None
         if x==y :
-            raise NameError(f"The singleton {x} was furnished instead of a valid segment")
+            raise NameError(f"The singleton {x} was furnished instead of a valid segment at node {self}")
             return None
 
         #Check if the list is empty
         if self.occupation == [] :
             self.occupation.append(segment)
-            self.taille = 1
             return None
 
         #Loop through list
-        for i in range(self.taille) :
+        for i in range(len(self.occupation)) :
             xi,yi = self.occupation[i][0],self.occupation[i][1]
 
             if i==0 and y <= xi :
                 self.occupation.insert(0,segment)
-                self.taille += 1
                 return None
             
-            elif i==(self.taille-1) and yi <= x :
+            elif i==(len(self.occupation)-1) and yi <= x :
                 self.occupation.append(segment)
-                self.taille += 1
                 return None
             
             else :
@@ -74,14 +106,14 @@ class occupation_list :
 
                 if y1 <= x < y <= yi :
                     self.occupation.insert(i,segment)
-                    self.taille += 1
                     return None
         
         raise NameError("The intersection beetween the list and the segment is not empty")
 
-    def occupation_remove_min(self,t) :
+    def occupation_remove_min(self,t) -> None :
+        """Clean all the segment in the list that contain time lower than t"""
         temp_list = []
-        for i in range(self.taille) :
+        for i in range(len(self.occupation)) :
             x,y = self.occupation[i][0],self.occupation[i][1]
 
             if y <= t :
@@ -95,9 +127,29 @@ class occupation_list :
         
         self.occupation = temp_list
 
-    def occupation_remove_min_and_actualise(self,t):
+    def occupation_remove_max(self,t) -> None :
+        """Clean all the segment in the list that contain time higher than t"""
+        if type(t) == inf :
+            return None
+        
         temp_list = []
-        for i in range(self.taille) :
+        for i in range(len(self.occupation)) :
+            x,y = self.occupation[i][0],self.occupation[i][1]
+
+            if x >= t :
+                continue
+
+            elif y >= t :
+                temp_list.append([x,t])
+            
+            else :
+                temp_list.append([x,y])
+        
+        self.occupation = temp_list
+
+    def occupation_remove_min_and_actualise_to_0(self,t) -> None:
+        temp_list = []
+        for i in range(len(self.occupation)) :
             x,y = self.occupation[i][0],self.occupation[i][1]
 
             if y <= t :
@@ -111,10 +163,51 @@ class occupation_list :
         
         self.occupation = temp_list
 
+    def freetime_list(self,t) :
+        """
+        Fonction qui retourne la liste des temps libre sous la forme d'une liste de segment
+        à partir de la date t. Les segments impraticables sont déjà enlevés
+        La convention [0,inf] signifie que de 0 à l'infini c'est libre
+        """
+        list_after_t = [i for i in self.occupation if i[1] > t] #liste des créneaux après le temps t
+        return_list = []
+        n = len(list_after_t)
+        if n == 0 :
+            return [[t,inf()]]
+        
+        #Cas particulier n=1
+        elif n == 1 :
+            occ = list_after_t[0]
+            if occ[0] < t or abs(t-occ[0]) <= database.max_move :
+                return [[occ[1],inf()]]
+            else :
+                return [[t,occ[0]],[occ[1],inf()]]
+        
+        #Cas général
+        #Sous-cas du premier segment
+        occ = list_after_t[0]
+        if not(occ[0] < t or abs(t-occ[0]) <= database.max_move) : #Si on a un espace entre t et le premier element
+            return_list.append([t,occ[0]])
+
+        #Cas des segments internes
+        for i in range(1,n-1) :
+            x = list_after_t[i][1]
+            y = list_after_t[i+1][0]
+            e = y-x
+            assert e > 0
+            if e > database.max_move :
+                return_list.append([x,y])
+        
+        #Cas du dernier libre
+        dernier = list_after_t[-1][1]
+        return_list.append([dernier,inf()])
+
+        return return_list
+
 class Node(occupation_list) :
 
     def __init__(self,x: int,y: int):
-        occupation_list.__init__(self)
+        occupation_list.__init__(self,[])
         self.voisins = []
         self.coord = (x,y)
         self.have_shelf = False
@@ -126,6 +219,7 @@ class Node(occupation_list) :
         self.f = 0
         self.straight_parent = False
         self.wait = 0
+        self.date_maxwait = inf()
         self.parent = None
 
     def __repr__(self):
@@ -144,28 +238,48 @@ class Node(occupation_list) :
         x2,y2 = other.coord
         return(abs(x2-x1) + abs(y2-y1))
     
-    def minimum_waiting_time(self,total_time):
+    def get_wait_child_list(self,actual_time):
+        """
+        Prends en paramètre une heure d'arrivée, et retourne la liste des nouvelles cases
+        virtuelles qui correspondent à cette même case, libre selon des créneaux spécifiques
+        """
+        #Cas terminal : Si le noeud n'est pas occupé, on renvoie alors child, puisque c'est le meilleur noeud sans temps d'attente
         if self.occupation == [] :
-            return 0
-        delta = (database.margin_error + database.max_move)/2
-        segment =(total_time-delta,total_time+delta)
+            return [self]
         
-        if total_time + delta <= self.occupation[0][0] :
-            return 0
-        
-        n = len(self.occupation)
-        for i in range(0,n-1) :
-            act = self.occupation[i]
-            nxt = self.occupation[i+1]
+        #Fonction :
+        return_liste = []
+        liste_des_temps_libres = occupation_list(self.freetime_list(actual_time))
 
-            if act[1] <= total_time :
-                continue
+        #On va maintenant retirer les segments qui proposent une date d'attente d'au moins parent.date_maxwait
+        if self.parent == None : #Arrive seulement si self est le noeud de depart
+            t_max = inf()
+        else :
+            t_max = self.parent.date_maxwait
 
-            elif act[1] + 2*delta <= nxt[0] :
-                return (act[1]-total_time)
+        liste_des_temps_libres.occupation_remove_max(t_max)
+        #On a pas besoin de retirer les segments qui concernent des temps passés puisque freetime_list s'en charge
+
+        #Il reste donc des segments de la forme [[x1,y1],[x2,y2],[x3,inf]] qui correspondent aux plages disponibles
+        #On créer donc un noeud virtuel pour chaque, avec comme poids "p" (Soit p = xi-actual_time) le temps d'attente, et comme
+        #date d'attente maximal la fin du segment yi : 
         
-        return (self.occupation[-1][1]-total_time)
+        #Data du noeud actuel :
+        c1,c2   = self.coord
+
+        for seg in liste_des_temps_libres.occupation :
+            x,y = seg[0],seg[1]
+
+            v_node = Node(c1,c2)
+            v_node.voisins = self.voisins
             
+            v_node.wait = x - actual_time
+            v_node.date_maxwait = y
+
+            return_liste.append(v_node)
+        
+        return return_liste
+                        
 class Graph :
 
     def __repr__(self):
@@ -334,6 +448,9 @@ def pathfinder (start: tuple,end: tuple,graph: Graph,shelf: bool =False) :
     end_node   = graph.matrice[end[0]][end[1]]
     end_node.g = end_node.h = end_node.f = 0
 
+    #Adding the date_maxwait to the first node
+    #start_node.date_maxwait = inf()
+
     # Get the current node
     current_node  = start_node
     current_index = 0
@@ -347,7 +464,7 @@ def pathfinder (start: tuple,end: tuple,graph: Graph,shelf: bool =False) :
 
     # Adding a stop condition
     outer_iterations = 0
-    max_iterations = (graph.m * graph.n)
+    max_iterations = (graph.m * graph.n)**2
 
     #! Loop until find the end
     while len(open_list) > 0 :
@@ -358,8 +475,7 @@ def pathfinder (start: tuple,end: tuple,graph: Graph,shelf: bool =False) :
             print("giving up on pathfinding too many iterations")
             return return_path(current_node)
         
-        current_node = open_list[0]  #BUG FIX : perpetual Node(0,0)
-        
+        current_node = open_list[0] #pour trouver un min dans une liste
         # Get the current node
         for index, node in enumerate(open_list):
             if node.f < current_node.f:
@@ -406,31 +522,22 @@ def pathfinder (start: tuple,end: tuple,graph: Graph,shelf: bool =False) :
 
             #Valeur à ajouter à la fin au g du noeud
             plusvalue = 0
-
-            # Straight Parents
+            # Straight Parents (on sépare cela de la fonction g pour l'instant car expérimental)
             plusvalue = get_straight_score_node(child,parent,start_node)
 
-            # Child is occupied
-            delta = child.minimum_waiting_time(parent.g)
-            if delta != 0 :
-                x,y = child.coord
-                occupied_node = Node(x,y)
-                occupied_node.voisins = child.voisins
-                occupied_node.wait += delta
-                plusvalue += delta
+            # If child is occupied
+            wait_child_list = child.get_wait_child_list(actual_time=parent.g)
 
-                child = occupied_node #On ne considère plus le noeud enfant de base
-
-            # Create the f, g, and h values
-            child.g = g(child,parent) + plusvalue
-            child.h = h(child,end_node)
-            child.f = child.g + child.h
-
-            # Add the child parent
-            child.parent = parent
-
-            # Add the child to the open list
-            open_list.append(child)
+            #On ne considère plus le noeud enfant de base
+            for new_child in wait_child_list :
+                # Create the f, g, and h values (for all created childs if delta > 0, else for the current child)
+                new_child.g = (g(new_child,parent) + plusvalue) + new_child.wait
+                new_child.h = h(new_child,end_node)
+                new_child.f = new_child.g + new_child.h
+                # Add the child parent (for all created childs if delta > 0, else for the current child)
+                new_child.parent = parent
+                # Add all or the child to the open list
+                open_list.append(new_child)
 
 ##############################: PROGRAM :#############################
 

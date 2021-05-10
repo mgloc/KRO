@@ -49,7 +49,7 @@ if __name__ == "__main__":
 
     _, ax = plt.subplots()
 
-    graph = m_star.M_Graph((7,10))
+    graph = m_star.Graph((7,10))
     graph.fill_with_matrix(m_star.matrice_test)
     path = m_star.pathfinder((0,0),(6,9),graph)
 
