@@ -1,8 +1,10 @@
+import sys
+sys.path.append("D:\Desktop\TIPE\KRO")
+
 ##############################: IMPORTS :############################
 import math as m
 import threading
 import time
-import sys
 import database
 
 ##############################: GLOBAL VARIABLES :###################
