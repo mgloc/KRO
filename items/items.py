@@ -6,8 +6,6 @@ import math as m
 import threading
 import time
 import database
-from pathfinding import m_star
-
 ##############################: GLOBAL VARIABLES :###################
 
 
@@ -27,17 +25,88 @@ class robot(threading.Thread) :
 
         #Init thread
         self.activate()
+    
+    #Turn--------------------------------
+    #Utilisation du sens trigonométrique et de 0° pour l'est
+    def turn_left(self) :
+        self.angle += 90
+        self.angle = self.angle % 360
+        time.sleep((database.rotation_move_time)*1e-3)
+    
+    def turn_right(self) :
+        self.angle += -90
+        self.angle = self.angle % 360
+        time.sleep((database.rotation_move_time)*1e-3)
+    
+    def turn_over(self) :
+        self.turn_left()
+        self.turn_left()
+
+    def turn(self,choosen_angle) :
+        if self.angle == choosen_angle :
+            pass
+        elif (self.angle-180)%360 == choosen_angle :
+            self.turn_over()
+        elif (self.angle-90)%360 == choosen_angle :
+            self.turn_right()
+        else :
+            self.turn_left()
+    
+    def turn_toward_coord(self,coord):
+        if self.coord == coord :
+            return None
+
+        x,y = self.coord
+        x1,y1 = coord
+        if x1 == x-1 :
+            self.turn(90) #90° = North
+        elif x1 == x+1 :
+            self.turn(270) #-90° = South
+        elif y1 == y-1 :
+            self.turn(180) #180° = West
+        elif y1 == y+1 :
+            self.turn(0) #0° = East
+        else :
+            raise NameError(f"Invalid turn given : {self.coord},{coord}")
+    
+    #Move---------------------------------
+    def move_toward_coord(self,coord):
+        if self.coord == coord :
+            return None
+        
+        x,y   = self.coord
+        x1,y1 = coord
+
+        pas = 1/database.movement_step
+        for i in range(1,int(database.movement_step)) : #Méthode du barycentre pour effectuer une transition de 15 pas
+            lmb = i*pas
+            self.coord = ((1-lmb)*x + lmb*x1,(1-lmb)*y + lmb*y1)
+            time.sleep(database.period_10_fps*1e-3)
+        
+        self.coord = coord
+
     #Path---------------------------------
     def send_path(self,chemin):
         self.request_follow_path = chemin
 
-    def follow_path(self,chemin): #TODO Follow_path func
+    def follow_path(self,chemin):
         n = len(chemin)
         for i in range(n):
             task = chemin[i]
+            wait = task[1]
+            coord = task[0]
 
             #Attente :
-            time.sleep(task[0])
+            time.sleep(wait)
+
+            #Rotation :
+            self.turn_toward_coord(coord)
+
+            #Avancement :
+            self.move_toward_coord(coord)
+        
+        self.request_follow_path = []
+
     #Ping---------------------------------
     def send_ping(self):
         self.request_ping = True

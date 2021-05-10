@@ -1,43 +1,33 @@
-class inf :
+import tkinter as tk       
+import threading
 
-    def __eq__(self,other):
-        if type(other) == type(self) :
-            return True 
-        return False 
+class Application(tk.Frame):              
+    def __init__(self, master=None):
+        tk.Frame.__init__(self, master)   
+        self.grid()                       
+        self.createWidgets()
+
+    def printHello(self):
+        print("Hello")
+
+    def createWidgets(self):
+        self.quitButton = tk.Button(self, text='Quit',
+            command=self.quit) # exits background (gui) thread
+        self.quitButton.grid(row=1,column=0)    
+        self.printButton = tk.Button(self, text='Print',command=lambda: self.printHello())         
+        self.printButton.grid(row=1,column=1) 
+
+def runtk():  # runs in background thread
+    app = Application()                        
+    app.master.title('Sample application')     
+    app.mainloop()
     
-    def __gt__(self,other) :
-        if type(other) in [list,int,float] :
-            return True
-        if type(other) == inf :
-            return False
-        else :
-            raise TypeError("Problème de typage")
+thd = threading.Thread(target=runtk)   # gui thread
+thd.daemon = True  # background thread will exit if main thread exits
+thd.start()  # start tk loop
 
-    def __lt__(self,other):
-        if type(other) in [list,int,float,inf] :
-            return False
-        raise TypeError("Problème de typage")
-
-    def __le__(self,other):
-        return self.__lt__(other) or self.__eq__(other)
-    
-    def __ge__(self,other):
-        return self.__gt__(other) or self.__eq__(other)
-
-
-
-class occupation_list :
-    
-    def __init__(self,liste:list[list[int]]) :
-        self.occupation = liste
-
-class Node(occupation_list) :
-
-    def __init__(self,x: int,y: int):
-        occupation_list.__init__(self)
-
-oc1 = occupation_list([])
-oc2 = occupation_list([])
-
-oc1.occupation.append("sexe")
-print(oc2.occupation)
+while True:  # run in main thread
+   x = input("Enter a value or Q to quit: ")
+   if x.lower() == 'q':
+      exit()
+   print('You entered', x)
