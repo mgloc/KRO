@@ -29,14 +29,16 @@ class robot(threading.Thread) :
     #Turn--------------------------------
     #Utilisation du sens trigonométrique et de 0° pour l'est
     def turn_left(self) :
+        time.sleep((database.rotation_move_half_time)*1e-3)
         self.angle += 90
         self.angle = self.angle % 360
-        time.sleep((database.rotation_move_time)*1e-3)
+        time.sleep((database.rotation_move_half_time)*1e-3)
     
     def turn_right(self) :
+        time.sleep((database.rotation_move_half_time)*1e-3)
         self.angle += -90
         self.angle = self.angle % 360
-        time.sleep((database.rotation_move_time)*1e-3)
+        time.sleep((database.rotation_move_half_time)*1e-3)
     
     def turn_over(self) :
         self.turn_left()
@@ -97,7 +99,7 @@ class robot(threading.Thread) :
             coord = task[0]
 
             #Attente :
-            time.sleep(wait)
+            time.sleep(wait*1e-3)
 
             #Rotation :
             self.turn_toward_coord(coord)

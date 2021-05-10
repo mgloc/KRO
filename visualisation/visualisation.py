@@ -11,7 +11,21 @@ from pathfinding import m_star
 from items import items
 
 ##############################: GLOBAL VARIABLES :###################
-chemin_test = [((1, 0), 0), ((0, 0), 10), ((0, 1), 0), ((0, 2), 0), ((0, 3), 0), ((0, 4), 0), ((0, 5), 0), ((0, 6), 0), ((0, 7), 0), ((0, 8), 0), ((0, 9), 0)]
+cos ={
+    0:1,
+    90:0,
+    180:-1,
+    270:0,
+    360:1
+}
+sin ={
+    0:0,
+    90:1,
+    180:0,
+    270:-1,
+    360:0
+}
+
 
 global robot_list
 robot_list = []
@@ -43,16 +57,25 @@ class windows :
         self.can.pack()
     
     def convert_coord_to_pixels(self,coord):
-        return (coord[0]*self.taille_case,coord[1]*self.taille_case)
+        return (coord[1]*self.taille_case,coord[0]*self.taille_case)
 
 
-    def place_robot(self,coord:tuple=(0,0))->None:
-        coord = self.convert_coord_to_pixels(coord)
-        self.can.create_rectangle(coord, (coord[0]+self.taille_case,coord[1]+self.taille_case),fill="orange")
+    def place_robot(self,coord:tuple=(0,0),angle=0)->None:
+        corner_tl_coord = self.convert_coord_to_pixels(coord)                   #tl = top left
+        corner_br_coord = self.convert_coord_to_pixels((coord[0]+1,coord[1]+1)) #br = bottom right
+        middle          = ((corner_tl_coord[0]+corner_br_coord[0])/2,(corner_tl_coord[1]+corner_br_coord[1])/2)
+        middle_plus_angle= self.convert_coord_to_pixels((-sin[angle],cos[angle]))
+        middle_top      = (middle[0]+0.5*middle_plus_angle[0],middle[1]+0.5*middle_plus_angle[1])
+
+        #Body
+        self.can.create_rectangle(corner_tl_coord, corner_br_coord,fill="orange")
+
+        #Angle
+        self.can.create_line(middle,middle_top,fill="red")
     
     def place_all_robot(self,robot_list:list[items.robot])->None:
         for robot in robot_list :
-            self.place_robot(robot.coord)
+            self.place_robot(robot.coord,robot.angle)
     
     def actualise_canvas(self):
         self.can.delete("all")
@@ -70,5 +93,5 @@ if __name__ == "__main__" :
     thd.start()
 
     robot_list.append(items.robot(0,(0,0)))
-    robot_list[0].send_path(chemin = chemin_test)
+    robot_list.append(items.robot(0,(0,1)))
 
