@@ -70,8 +70,7 @@ class occupation_list :
         return f"Occlist {self.occupation}"
     
     def occupation_add(self,segment) -> None :
-        """ On choisi ici de retourner une erreur si le segment est mal structuré
-        """
+        """ On choisi ici de retourner une erreur si le segment est mal structuré"""
 
         if len(segment) != 2 :
             raise NameError(f"The segment {segment} is invalid (length != 2)")
@@ -216,13 +215,7 @@ class Node(occupation_list) :
         self.accessible = True
 
         #M-Star
-        self.g = 0
-        self.h = 0
-        self.f = 0
-        self.straight_parent = False
-        self.wait = 0
-        self.date_maxwait = inf()
-        self.parent = None
+        self.reset_node()
 
     def __repr__(self):
         x,y = self.coord
@@ -232,7 +225,12 @@ class Node(occupation_list) :
         return self.coord == other.coord
 
     def reset_node(self):
-        self.g = self.h = self.f = 0
+        self.g = 0
+        self.h = 0
+        self.f = 0
+        self.straight_parent = False
+        self.wait = 0
+        self.date_maxwait = inf()
         self.parent = None
     
     def manhattan(self,other) :
@@ -294,6 +292,16 @@ class Graph :
         self.fill_node_auto()
         self.fill_voisins_auto()
 
+    def compatibility_check(self,matrix) :
+        if matrix == [] :
+            raise NameError("An empty matrix was given")
+            return False
+
+        if self.n != len(matrix) or self.m != len(matrix[0]) :
+            raise NameError("Dimensions are uncompatible \n Matrix : {},{} Graph : {},{}".format(len(matrix),len(matrix[0]),self.n,self.m))
+            return False
+        return True
+
     def fill_node_auto(self) :
         if self.matrice != [] :
             raise NameError("Cette fonction est uniquement executable à l'initialisation d'un graph vide")
@@ -339,16 +347,6 @@ class Graph :
 
                 noeudactuel.voisins = voisins
 
-    def compatibility_check(self,matrix) :
-        if matrix == [] :
-            raise NameError("An empty matrix was given")
-            return False
-
-        if self.n != len(matrix) or self.m != len(matrix[0]) :
-            raise NameError("Dimensions are uncompatible \n Matrix : {},{} Graph : {},{}".format(len(matrix),len(matrix[0]),self.n,self.m))
-            return False
-        return True
-      
     def fill_with_matrix(self,matrix) :
         if self.compatibility_check(matrix) :
 
@@ -369,9 +367,8 @@ class Graph :
                         current_node = self.matrice[i][j]
                         current_node.occupation = liste_occupation
 
-    def fill_occupation_with_path(self,ppath) : #TODO Get clock
-        #get current clock
-        sum_time = 0 #<--putclockhere
+    def fill_occupation_with_path(self,ppath,clock=0) :
+        sum_time = clock
         n        = len(ppath)
 
         #Explore path
@@ -393,7 +390,21 @@ class Graph :
             #Adding the segment to the matrice
             i,j = coord
             self.matrice[i][j].occupation_add([initial_time,sum_time])
-        
+    
+    def actualise_all_nodes(self,clock):
+        for ligne in self.matrice :
+            for noeud in ligne :
+                noeud.occupation_remove_min(clock)
+    
+    def actualise_all_nodes_and_reset_to_0(self,clock):
+        for ligne in self.matrice :
+            for noeud in ligne :
+                noeud.occupation_remove_min_and_actualise_to_0(clock)
+
+    def reset_all_nodes(self):
+        for ligne in self.matrice :
+            for noeud in ligne :
+                noeud.reset_node()
 ##############################: PATHFINDING FUNCTIONS :################
 
 def h(node: Node, end_node: Node):
@@ -438,20 +449,19 @@ def get_straight_score_node(child:Node,parent:Node,starting_node:Node) :
     
     return 0
 
-def pathfinder (start: tuple,end: tuple,graph: Graph,shelf: bool =False) :
+def pathfinder (start: tuple,end: tuple,graph: Graph,clock=0,shelf: bool =False) :
 
     #TODO #1 Simples vérifications de dimensions
 
-    #TODO #2 Actualiser toute les listes temps d'occupation des noeuds
+    #Reset the graph for a new pathfinding
+    graph.actualise_all_nodes(clock)
+    graph.reset_all_nodes()
 
     # Create start and end node
     start_node   = graph.matrice[start[0]][start[1]]
     start_node.g = start_node.h = start_node.f = 0
     end_node   = graph.matrice[end[0]][end[1]]
     end_node.g = end_node.h = end_node.f = 0
-
-    #Adding the date_maxwait to the first node
-    #start_node.date_maxwait = inf()
 
     # Get the current node
     current_node  = start_node
@@ -490,7 +500,7 @@ def pathfinder (start: tuple,end: tuple,graph: Graph,shelf: bool =False) :
         # Found the goal
         if current_node == end_node:
             final_path = return_path(current_node)
-            graph.fill_occupation_with_path(final_path)
+            graph.fill_occupation_with_path(final_path,clock=clock)
             return final_path
 
         # Children
@@ -528,7 +538,7 @@ def pathfinder (start: tuple,end: tuple,graph: Graph,shelf: bool =False) :
             plusvalue = get_straight_score_node(child,parent,start_node)
 
             # If child is occupied
-            wait_child_list = child.get_wait_child_list(actual_time=parent.g)
+            wait_child_list = child.get_wait_child_list(actual_time=parent.g+clock)
 
             #On ne considère plus le noeud enfant de base
             for new_child in wait_child_list :

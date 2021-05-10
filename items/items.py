@@ -91,6 +91,13 @@ class robot(threading.Thread) :
     def send_path(self,chemin):
         self.request_follow_path = chemin
 
+    def is_available_path(self):
+        if self.request_follow_path == [] :
+            return True
+        else :
+            print(f"Robot{self.id} is busy right now")
+            return False
+
     def follow_path(self,chemin):
         n = len(chemin)
         for i in range(n):
