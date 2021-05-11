@@ -8,6 +8,8 @@ import time
 import database
 ##############################: GLOBAL VARIABLES :###################
 
+active_robot = []
+passive_robot = [] #TODO ce probleme de merde
 
 #############################: CLASS :###############################
      

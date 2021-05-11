@@ -104,7 +104,8 @@ class occupation_list :
                     self.occupation.insert(i,segment)
                     return None
         
-        raise NameError(f"The intersection beetween the list and the segment is not empty : segment={segment}, occ_list={self.occupation}")
+        #raise NameError(f"The intersection beetween the list and the segment is not empty : segment={segment}, occ_list={self.occupation}")
+        print(f"{segment},{self.occupation}")
 
     def occupation_remove_min(self,t) -> None :
         """Clean all the segment in the list that contain time lower than t"""
@@ -235,12 +236,11 @@ class Node(occupation_list) :
         x2,y2 = other.coord
         return(abs(x2-x1) + abs(y2-y1))
     
-    def get_wait_child_list(self,actual_time):
+    def get_wait_child_list(self,actual_time,parent):
         """
         Prends en paramètre une heure d'arrivée, et retourne la liste des nouvelles cases
         virtuelles qui correspondent à cette même case, libre selon des créneaux spécifiques
         """
-        e = database.margin_error #!
 
         #Cas terminal : Si le noeud n'est pas occupé, on renvoie alors child, puisque c'est le meilleur noeud sans temps d'attente
         if self.occupation == [] :
@@ -251,10 +251,12 @@ class Node(occupation_list) :
         liste_des_temps_libres = occupation_list(self.freetime_list(actual_time))
 
         #On va maintenant retirer les segments qui proposent une date d'attente d'au moins parent.date_maxwait 
-        if self.parent == None : #Arrive seulement si self est le noeud de depart
-            t_max = inf()
-        else :
-            t_max = max(0,self.parent.date_maxwait - e)
+       
+        #! J'ai laissé ce petit paragraphe qui fut l'origine d'une énorme session de debugage pour les souvenirs
+        # if parent == None : #Arrive seulement si self est le noeud de depart
+        #     t_max = inf()
+
+        t_max = parent.date_maxwait
 
         liste_des_temps_libres.occupation_remove_max(t_max)
         #On a pas besoin de retirer les segments qui concernent des temps passés puisque freetime_list s'en charge
@@ -275,7 +277,7 @@ class Node(occupation_list) :
             v_node.voisins = self.voisins
             
             v_node.wait = x - actual_time
-            v_node.date_maxwait = y
+            v_node.date_maxwait = y - database.max_move
 
             return_liste.append(v_node)
         
@@ -434,7 +436,7 @@ def return_path(current_node):
     path = []
     current = current_node
     while current is not None:
-        path.append((current.coord,current.wait))
+        path.append((current.coord,current.wait,current.g))
         current = current.parent
     return path[::-1]  # Return reversed path
 
@@ -466,7 +468,6 @@ def get_straight_score_node(child:Node,parent:Node,starting_node:Node) :
     
     return 0
 
-@time_it
 def pathfinder (start: tuple,end: tuple,graph: Graph,clock=0,shelf:bool = False,robot_coord_list=[],shelf_coord_list=[],return_end_clock=False,custom_clock=False) :
 
     #TODO #1 Simples vérifications de dimensions
@@ -569,7 +570,7 @@ def pathfinder (start: tuple,end: tuple,graph: Graph,clock=0,shelf:bool = False,
             plusvalue = get_straight_score_node(child,parent,start_node)
 
             # If child is occupied
-            wait_child_list = child.get_wait_child_list(actual_time=parent.g+clock)
+            wait_child_list = child.get_wait_child_list(actual_time=parent.g+clock,parent=parent)
 
             #On ne considère plus le noeud enfant de base
             for new_child in wait_child_list :
@@ -586,9 +587,7 @@ def pathfinder (start: tuple,end: tuple,graph: Graph,clock=0,shelf:bool = False,
 
 if __name__ == "__main__":
     
-    # graph = Graph((7,10))
-    # graph.fill_with_matrix(matrice_test)
-    # graph.fill_occupation_with_path([((0, 0), 0), ((0, 1), 0), ((0, 2), 0), ((0, 3), 0), ((0, 4), 0), ((0, 5), 0), ((0, 6), 0), ((0, 7), 0), ((0, 8), 0), ((0, 9), 0)])
-    # print(pathfinder((1,0),(0,9),graph))
-
-    print(get_straight_score_coord((0,1),(1,1),(1,2)))
+    graph = Graph((2,4))
+    #graph.fill_occupation_with_path([((0, 0), 0), ((0, 1), 0), ((0, 2), 0), ((0, 3), 0), ((1, 3), 0)])
+    print(pathfinder((0,0),(1,3),graph,clock=0,custom_clock=True))
+    print(pathfinder((1,0),(0,3),graph,clock=100,custom_clock=True))

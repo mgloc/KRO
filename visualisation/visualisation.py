@@ -1,5 +1,4 @@
 import sys
-from typing import Text
 sys.path.append("D:\Desktop\TIPE\KRO")
 
 ##############################: IMPORTS :############################
@@ -19,6 +18,7 @@ sin ={0:0,90:1,180:0,270:-1,360:0}
 
 robot_list = []
 shelf_list = []
+occupied_node = [] #liste des noeuds occupés de manières permanante inaccessible par pathfinding
 
 clock = 0
 
@@ -105,8 +105,8 @@ class windows :
         self.root.after(database.period_10_fps,self.actualise_clock)
 
 #Thread tk----------------------------
-def runtk():
-    my_w = windows()
+def runtk(size=database.size):
+    my_w = windows(dimensions=size)
     my_w.root.after(100,my_w.actualise_canvas)
     my_w.root.after(100,my_w.actualise_clock)
     my_w.root.mainloop()
@@ -115,12 +115,12 @@ def runtk():
 
 class controller :
 
-    def __init__(self):
+    def __init__(self,size=database.size):
         #Initialisation :
-        self.graph = m_star.Graph(database.size)
+        self.graph = m_star.Graph(size)
 
         #Canvas initialisation :
-        self.visualisation_thread = threading.Thread(target=runtk)
+        self.visualisation_thread = threading.Thread(target=runtk,args=(size,))
         self.visualisation_thread.start()
 
     #Sendpath---------------------------------------------
@@ -128,6 +128,7 @@ class controller :
         assert robot in robot_list
         if robot.is_available_path() :
             chemin = m_star.pathfinder(robot.coord,coord,self.graph,clock)
+            print(chemin)
             robot.send_path(chemin)
     
     def send_robot_three_points(self,robot,coord1,coord2):
@@ -137,13 +138,11 @@ class controller :
             chemin2 = m_star.pathfinder(coord1,coord2,self.graph,end_clock,custom_clock=True)
             robot.send_path(chemin1 + chemin2)
     
-
     def send_robot_pick_up(self,robot,shelf,coord):
         assert robot in robot_list
         assert shelf in shelf_list
-        print(f"launched at {clock}")
         if robot.is_available_path() and robot.is_available_pick_up() :
-            chemin_armoire,end_clock = m_star.pathfinder(robot.coord,shelf.coord,self.graph,clock+100,return_end_clock=True,robot_coord_list=[r.coord for r in robot_list if r.is_available_path(log_error=False)])
+            chemin_armoire,end_clock = m_star.pathfinder(robot.coord,shelf.coord,self.graph,clock,return_end_clock=True,robot_coord_list=[r.coord for r in robot_list if r.is_available_path(log_error=False)])
             end_clock += database.pick_move_time
             chemin_coord = m_star.pathfinder(shelf.coord,coord,self.graph,end_clock,custom_clock=True,shelf=True,shelf_coord_list=[s.coord for s in shelf_list],robot_coord_list=[r.coord for r in robot_list if r.is_available_path(log_error=False)]) 
             robot.send_path(chemin_armoire + [shelf] + chemin_coord)
@@ -157,20 +156,62 @@ class controller :
 
 ###########################: TEST FUNCTIONS :#######################################
 
-def spawn_10():
+def spawn_k_shelf(k):
+
+    if k<=2 :
+        coord = (20,20)
+    else :
+        coord = (k,k)
+
     global robot_list
     global shelf_list
-    my_ctrl = controller()
-    for i in range(20):
+    my_ctrl = controller(coord)
+    for i in range(k):
         my_ctrl.new_robot((i,0))
         my_ctrl.new_shelf((i,10))
     
-    pod_list = [(i,19) for i in range(20)]
-    pod_list[18],pod_list[19]=pod_list[19],pod_list[18]
+    pod_list = [(i,19) for i in range(k)]
+    pod_list[k-2],pod_list[k-1]=pod_list[k-1],pod_list[k-2]
 
-    for i in range(20):
+    for i in range(k):
         time.sleep(0.1)
         my_ctrl.send_robot_pick_up(robot_list[i],shelf_list[i],pod_list[i])
+
+def spawn_2(d):
+    coord = (2,d+1)
+
+    global robot_list
+    global shelf_list
+    my_ctrl = controller(coord)
+    for i in range(2):
+        my_ctrl.new_robot((i,0))
+    
+    pod_list = [(1,d),(0,d)]
+
+    for i in range(2):
+        time.sleep(0.1)
+        my_ctrl.send_robot_to_coord(robot_list[i],pod_list[i])
+
+def spawn_k_random(k):
+    if k<=20 :
+        coord = (20,20)
+    else :
+        coord = (k,k)
+
+    global robot_list
+    global shelf_list
+    my_ctrl = controller(coord)
+    for i in range(k):
+        my_ctrl.new_robot((i,0))
+        my_ctrl.new_shelf((i,10))
+    
+    pod_list = [(i,19) for i in range(k)]
+    random.shuffle(pod_list)
+
+    for i in range(k):
+        time.sleep(1)
+        my_ctrl.send_robot_pick_up(robot_list[i],shelf_list[i],pod_list[i])
+
 
 ####################################################################################
 if __name__ == "__main__" :
@@ -182,6 +223,5 @@ if __name__ == "__main__" :
     # my_ctrl.send_robot_pick_up(robot_list[0],shelf_list[0],(10,10))
     #TODO Idée pour vérifier la source d'erreur avec progression linéaire sur le décalage du segment en fonction du nombre de path lancées
 
-    spawn_10()
-
+    spawn_k_random(50)
 
