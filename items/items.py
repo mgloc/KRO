@@ -141,8 +141,10 @@ class robot(threading.Thread) :
             return None
         
         #Pick-up
+        time.sleep(database.pick_move_half_time*1e-3)
         self.carried_shelf = choosen_shelf
         self.carried_shelf.pick_up()
+        time.sleep(database.pick_move_half_time*1e-3)
     
     def put_down(self):
         #Cas impossibles
@@ -151,8 +153,10 @@ class robot(threading.Thread) :
             return None
         
         #Put-down
+        time.sleep(database.pick_move_half_time*1e-3)
         self.carried_shelf.put_down(self.coord)
         self.carried_shelf = None
+        time.sleep(database.pick_move_half_time*1e-3)
 
     def is_available_pick_up(self):
         if self.carried_shelf == None :
@@ -165,11 +169,12 @@ class robot(threading.Thread) :
     def send_path(self,chemin):
         self.request_follow_path = chemin
 
-    def is_available_path(self):
+    def is_available_path(self,log_error=True):
         if self.request_follow_path == [] :
             return True
         else :
-            print(f"Robot{self.id} is busy right now")
+            if log_error :
+                print(f"Robot{self.id} is busy right now")
             return False
 
     def follow_path(self,chemin):

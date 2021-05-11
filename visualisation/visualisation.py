@@ -1,4 +1,5 @@
 import sys
+from typing import Text
 sys.path.append("D:\Desktop\TIPE\KRO")
 
 ##############################: IMPORTS :############################
@@ -6,10 +7,11 @@ import math as m
 import threading
 import time
 import database
-from tkinter import Tk,Canvas
+from tkinter import StringVar, Tk,Canvas,Label
 from pathfinding import m_star
 from items import items
 import random
+from decorators_test import *
 
 ##############################: GLOBAL VARIABLES :###################
 cos ={0:1,90:0,180:-1,270:0,360:1}
@@ -44,6 +46,10 @@ class windows :
         #Canevas
         self.can = Canvas(self.root, width=self.can_width, height=self.can_height)
         self.can.pack()
+        #Label compteur
+        self.clock = StringVar(value=0)
+        self.lbl_compteur = Label(self.root,textvariable=self.clock)
+        self.lbl_compteur.pack()
     
     def convert_coord_to_pixels(self,coord):
         return (coord[1]*self.taille_case,coord[0]*self.taille_case)
@@ -95,15 +101,15 @@ class windows :
     def actualise_clock(self) :
         global clock
         clock += database.period_10_fps
+        self.clock.set(clock)
         self.root.after(database.period_10_fps,self.actualise_clock)
 
-
+#Thread tk----------------------------
 def runtk():
     my_w = windows()
     my_w.root.after(100,my_w.actualise_canvas)
     my_w.root.after(100,my_w.actualise_clock)
     my_w.root.mainloop()
-
 
 #############################: CONTROLLER :###############################
 
@@ -117,7 +123,7 @@ class controller :
         self.visualisation_thread = threading.Thread(target=runtk)
         self.visualisation_thread.start()
 
-
+    #Sendpath---------------------------------------------
     def send_robot_to_coord(self,robot,coord) :
         assert robot in robot_list
         if robot.is_available_path() :
@@ -131,15 +137,18 @@ class controller :
             chemin2 = m_star.pathfinder(coord1,coord2,self.graph,end_clock,custom_clock=True)
             robot.send_path(chemin1 + chemin2)
     
+
     def send_robot_pick_up(self,robot,shelf,coord):
         assert robot in robot_list
         assert shelf in shelf_list
+        print(f"launched at {clock}")
         if robot.is_available_path() and robot.is_available_pick_up() :
-            chemin_armoire,end_clock = m_star.pathfinder(robot.coord,shelf.coord,self.graph,clock,return_end_clock=True)
-            chemin_coord = m_star.pathfinder(shelf.coord,coord,self.graph,end_clock,custom_clock=True) 
+            chemin_armoire,end_clock = m_star.pathfinder(robot.coord,shelf.coord,self.graph,clock+100,return_end_clock=True,robot_coord_list=[r.coord for r in robot_list if r.is_available_path(log_error=False)])
+            end_clock += database.pick_move_time
+            chemin_coord = m_star.pathfinder(shelf.coord,coord,self.graph,end_clock,custom_clock=True,shelf=True,shelf_coord_list=[s.coord for s in shelf_list],robot_coord_list=[r.coord for r in robot_list if r.is_available_path(log_error=False)]) 
             robot.send_path(chemin_armoire + [shelf] + chemin_coord)
 
-    
+    #Creation---------------------------------------------
     def new_robot(self,coord=(0,0),angle=0):
         robot_list.append(items.robot(len(robot_list),coord,angle))
 
@@ -152,16 +161,16 @@ def spawn_10():
     global robot_list
     global shelf_list
     my_ctrl = controller()
-    for i in range(10):
+    for i in range(20):
         my_ctrl.new_robot((i,0))
         my_ctrl.new_shelf((i,10))
     
-    pod_list = [[(i,19) for i in range(0,10)]]
-    random.shuffle(pod_list)
+    pod_list = [(i,19) for i in range(20)]
+    pod_list[18],pod_list[19]=pod_list[19],pod_list[18]
 
-    for i in range(10):
-        my_ctrl.send_robot_pick_up(robot_list[i],shelf_list[9-i],pod_list[i])
-
+    for i in range(20):
+        time.sleep(0.1)
+        my_ctrl.send_robot_pick_up(robot_list[i],shelf_list[i],pod_list[i])
 
 ####################################################################################
 if __name__ == "__main__" :
@@ -171,7 +180,7 @@ if __name__ == "__main__" :
     # my_ctrl.new_shelf(coord=(5,5))
     # time.sleep(1)
     # my_ctrl.send_robot_pick_up(robot_list[0],shelf_list[0],(10,10))
-    
+    #TODO Idée pour vérifier la source d'erreur avec progression linéaire sur le décalage du segment en fonction du nombre de path lancées
 
     spawn_10()
 

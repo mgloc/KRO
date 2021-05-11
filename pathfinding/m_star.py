@@ -6,6 +6,7 @@ import math as m
 import threading
 import time
 import database
+from decorators_test import *
 
 ##############################: GLOBAL VARIABLES :###################
 
@@ -46,6 +47,14 @@ class inf :
     
     def __ge__(self,other):
         return self.__gt__(other) or self.__eq__(other)
+    
+    def __add__(self,other) :
+        return self
+
+    def __sub__(self,other) :
+        if type(other) == inf :
+            raise TypeError("Soustraction entre deux inf")
+        return self
 
 class occupation_list :
     
@@ -54,7 +63,7 @@ class occupation_list :
     
     def __repr__(self):
         return f"Occlist {self.occupation}"
-    
+
     def occupation_add(self,segment) -> None :
         """ On choisi ici de retourner une erreur si le segment est mal structuré"""
 
@@ -95,7 +104,7 @@ class occupation_list :
                     self.occupation.insert(i,segment)
                     return None
         
-        raise NameError("The intersection beetween the list and the segment is not empty")
+        raise NameError(f"The intersection beetween the list and the segment is not empty : segment={segment}, occ_list={self.occupation}")
 
     def occupation_remove_min(self,t) -> None :
         """Clean all the segment in the list that contain time lower than t"""
@@ -218,6 +227,8 @@ class Node(occupation_list) :
         self.wait = 0
         self.date_maxwait = inf()
         self.parent = None
+
+        self.have_shelf = False
     
     def manhattan(self,other) :
         x1,y1 = self.coord
@@ -229,6 +240,8 @@ class Node(occupation_list) :
         Prends en paramètre une heure d'arrivée, et retourne la liste des nouvelles cases
         virtuelles qui correspondent à cette même case, libre selon des créneaux spécifiques
         """
+        e = database.margin_error #!
+
         #Cas terminal : Si le noeud n'est pas occupé, on renvoie alors child, puisque c'est le meilleur noeud sans temps d'attente
         if self.occupation == [] :
             return [self]
@@ -237,11 +250,11 @@ class Node(occupation_list) :
         return_liste = []
         liste_des_temps_libres = occupation_list(self.freetime_list(actual_time))
 
-        #On va maintenant retirer les segments qui proposent une date d'attente d'au moins parent.date_maxwait
+        #On va maintenant retirer les segments qui proposent une date d'attente d'au moins parent.date_maxwait 
         if self.parent == None : #Arrive seulement si self est le noeud de depart
             t_max = inf()
         else :
-            t_max = self.parent.date_maxwait
+            t_max = max(0,self.parent.date_maxwait - e)
 
         liste_des_temps_libres.occupation_remove_max(t_max)
         #On a pas besoin de retirer les segments qui concernent des temps passés puisque freetime_list s'en charge
@@ -255,6 +268,8 @@ class Node(occupation_list) :
 
         for seg in liste_des_temps_libres.occupation :
             x,y = seg[0],seg[1]
+            if y-x < database.max_move :
+                continue
 
             v_node = Node(c1,c2)
             v_node.voisins = self.voisins
@@ -353,7 +368,7 @@ class Graph :
                         current_node = self.matrice[i][j]
                         current_node.occupation = liste_occupation
 
-    def fill_occupation_with_path(self,ppath,clock=0,return_end_clock=False) :
+    def fill_occupation_with_path(self,ppath,clock=0,return_end_clock=False) : #TODO Problème de décalage dans le path
         sum_time = clock
         n        = len(ppath)
 
@@ -389,6 +404,18 @@ class Graph :
         for ligne in self.matrice :
             for noeud in ligne :
                 noeud.occupation_remove_min_and_actualise_to_0(clock)
+
+    def actualise_all_shelf(self,shelf_coord_list) :
+        for coord in shelf_coord_list :
+            noeud = self.matrice[coord[0]][coord[1]]
+            noeud.have_shelf = True
+
+    def actualise_all_inactive_robots(self,robot_coord_list):
+        for coord in robot_coord_list :
+            if type(coord[0]) == float or type(coord[1]) == float :
+                continue
+            noeud = self.matrice[coord[0]][coord[1]]
+            noeud.is_accessible = False
 
     def reset_all_nodes(self):
         for ligne in self.matrice :
@@ -439,16 +466,22 @@ def get_straight_score_node(child:Node,parent:Node,starting_node:Node) :
     
     return 0
 
-def pathfinder (start: tuple,end: tuple,graph: Graph,clock=0,shelf: bool =False,return_end_clock=False,custom_clock=False) :
+@time_it
+def pathfinder (start: tuple,end: tuple,graph: Graph,clock=0,shelf:bool = False,robot_coord_list=[],shelf_coord_list=[],return_end_clock=False,custom_clock=False) :
 
     #TODO #1 Simples vérifications de dimensions
-
-    #TODO #2 Actualiser les armoires portées tout ça
 
     #Reset the graph for a new pathfinding
     if not(custom_clock) :
         graph.actualise_all_nodes(clock)
     graph.reset_all_nodes()
+    
+    if shelf :
+        #Actualise les armoires
+        graph.actualise_all_shelf(shelf_coord_list)
+    
+    #Actualise les robots non actifs
+    graph.actualise_all_inactive_robots(robot_coord_list)
 
     # Create start and end node
     start_node   = graph.matrice[start[0]][start[1]]
@@ -494,8 +527,11 @@ def pathfinder (start: tuple,end: tuple,graph: Graph,clock=0,shelf: bool =False,
         if current_node == end_node:
             final_path = return_path(current_node)
             end_clock = graph.fill_occupation_with_path(final_path,clock=clock,return_end_clock=return_end_clock)
+            
+            #Show the end_clock
             if return_end_clock :
                 return final_path,end_clock
+
             return final_path
 
         # Children
@@ -550,7 +586,9 @@ def pathfinder (start: tuple,end: tuple,graph: Graph,clock=0,shelf: bool =False,
 
 if __name__ == "__main__":
     
-    graph = Graph((7,10))
-    graph.fill_with_matrix(matrice_test)
-    graph.fill_occupation_with_path([((0, 0), 0), ((0, 1), 0), ((0, 2), 0), ((0, 3), 0), ((0, 4), 0), ((0, 5), 0), ((0, 6), 0), ((0, 7), 0), ((0, 8), 0), ((0, 9), 0)])
-    print(pathfinder((1,0),(0,9),graph))
+    # graph = Graph((7,10))
+    # graph.fill_with_matrix(matrice_test)
+    # graph.fill_occupation_with_path([((0, 0), 0), ((0, 1), 0), ((0, 2), 0), ((0, 3), 0), ((0, 4), 0), ((0, 5), 0), ((0, 6), 0), ((0, 7), 0), ((0, 8), 0), ((0, 9), 0)])
+    # print(pathfinder((1,0),(0,9),graph))
+
+    print(get_straight_score_coord((0,1),(1,1),(1,2)))
