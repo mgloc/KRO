@@ -10,6 +10,41 @@ import database
 
 
 #############################: CLASS :###############################
+     
+class shelf :
+
+    def __init__(self,ids:int,coord:tuple,capacity:int=5):
+        self.id = ids
+        self.coord = coord
+        #Soulevage
+        self.is_picked_up = False
+        #Contenu
+        self.capacity = capacity
+        self.contenu = [[] for _ in range(self.capacity)]
+
+    def __repr__(self) -> str:
+        return f"shelf id:{self.id},coord:{self.coord}"
+    
+    #Pick-up Pick-down-------------------------------------------------
+    def pick_up(self):
+        self.is_picked_up = True
+    
+    def put_down(self,coord):
+        self.is_picked_up = False
+        self.coord = coord
+
+    #Items-------------------------------------------------------------
+    def item_add(self,item,slot):
+        assert 1<=slot<=self.capacity
+        self.contenu[slot].append(item)
+        
+    def item_remove(self,item):
+        for i in range(self.capacity) :
+            if item in self.contenu[i] :
+                self.contenu[i].remove(item)
+                return None
+        print(f"No such item {item} was found in shelf {self.id}")
+        return None
 
 class robot(threading.Thread) :
 
@@ -17,14 +52,22 @@ class robot(threading.Thread) :
         self.id = ids
         self.coord = coord
         self.angle = angle
-        
+
+        #Shelf relationship
+        self.carried_shelf = None
+
         #Thread variables
         self.is_active = True
+        #-Path
         self.request_follow_path = []
+        #-Ping
         self.request_ping = False
 
         #Init thread
         self.activate()
+    
+    def __repr__(self) -> str:
+        return f"robot id:{self.id},coord:{self.coord},active:{self.is_active}"
     
     #Turn--------------------------------
     #Utilisation du sens trigonométrique et de 0° pour l'est
@@ -87,6 +130,37 @@ class robot(threading.Thread) :
         
         self.coord = coord
 
+    #Pick-up Pick-down a shelf-----------
+    def pick_up(self,choosen_shelf:shelf):
+        #Cas impossibles
+        if self.coord != choosen_shelf.coord :
+            print(f"Impossible pick-up asked on coord:{self.coord},for {self} and {choosen_shelf} : Unmatched coords")
+            return None
+        if self.carried_shelf != None :
+            print(f"Impossible pick-up asked on coord:{self.coord},for {self} and {choosen_shelf} : Robot already carrying {self.carried_shelf}")
+            return None
+        
+        #Pick-up
+        self.carried_shelf = choosen_shelf
+        self.carried_shelf.pick_up()
+    
+    def put_down(self):
+        #Cas impossibles
+        if self.carried_shelf == None:
+            print(f"Impossible put-down asked : {self} was carrying nothing")
+            return None
+        
+        #Put-down
+        self.carried_shelf.put_down(self.coord)
+        self.carried_shelf = None
+
+    def is_available_pick_up(self):
+        if self.carried_shelf == None :
+            return True
+        else :
+            print(f"Robot{self.id} is busy right now")
+            return False
+
     #Path---------------------------------
     def send_path(self,chemin):
         self.request_follow_path = chemin
@@ -102,17 +176,21 @@ class robot(threading.Thread) :
         n = len(chemin)
         for i in range(n):
             task = chemin[i]
-            wait = task[1]
-            coord = task[0]
+            if type(task) == tuple :
+                wait = task[1]
+                coord = task[0]
 
-            #Attente :
-            time.sleep(wait*1e-3)
+                #Attente :
+                time.sleep(wait*1e-3)
 
-            #Rotation :
-            self.turn_toward_coord(coord)
+                #Rotation :
+                self.turn_toward_coord(coord)
 
-            #Avancement :
-            self.move_toward_coord(coord)
+                #Avancement :
+                self.move_toward_coord(coord)
+            
+            elif type(task) == shelf :
+                self.pick_up(choosen_shelf=task)
         
         self.request_follow_path = []
 
@@ -153,8 +231,13 @@ class robot(threading.Thread) :
             
             #Sleep to loop
             time.sleep(0.5)
-            
+ 
+class pod :
+    
+    def __init__(self,coord):
 
+        self.coord = coord
+        self.slots = []
 
 if __name__ == "__main__" :
     my_robot = robot(1,(0,0))

@@ -18,20 +18,6 @@ matrice_test = [[0,0,0,0,0,0,0,0,0,0],
                 [0,0,0,0,0,0,0,0,0,0],]
 
 #############################: CLASS :###############################
-
-
-class Clock(threading.Thread) :
-    def __init__(self):
-        threading.Thread.__init__(self)
-        self.time = 0
-        self.is_running = True
-
-    def run(self) :
-        print("Clock started")
-        while is_running :
-            time.sleep(0.1)
-            self.time += 1
-
 class inf :
 
     def __repr__(self) :
@@ -367,7 +353,7 @@ class Graph :
                         current_node = self.matrice[i][j]
                         current_node.occupation = liste_occupation
 
-    def fill_occupation_with_path(self,ppath,clock=0) :
+    def fill_occupation_with_path(self,ppath,clock=0,return_end_clock=False) :
         sum_time = clock
         n        = len(ppath)
 
@@ -390,6 +376,9 @@ class Graph :
             #Adding the segment to the matrice
             i,j = coord
             self.matrice[i][j].occupation_add([initial_time,sum_time])
+        
+        if return_end_clock :
+            return sum_time
     
     def actualise_all_nodes(self,clock):
         for ligne in self.matrice :
@@ -405,6 +394,7 @@ class Graph :
         for ligne in self.matrice :
             for noeud in ligne :
                 noeud.reset_node()
+
 ##############################: PATHFINDING FUNCTIONS :################
 
 def h(node: Node, end_node: Node):
@@ -449,12 +439,15 @@ def get_straight_score_node(child:Node,parent:Node,starting_node:Node) :
     
     return 0
 
-def pathfinder (start: tuple,end: tuple,graph: Graph,clock=0,shelf: bool =False) :
+def pathfinder (start: tuple,end: tuple,graph: Graph,clock=0,shelf: bool =False,return_end_clock=False,custom_clock=False) :
 
     #TODO #1 Simples vérifications de dimensions
 
+    #TODO #2 Actualiser les armoires portées tout ça
+
     #Reset the graph for a new pathfinding
-    graph.actualise_all_nodes(clock)
+    if not(custom_clock) :
+        graph.actualise_all_nodes(clock)
     graph.reset_all_nodes()
 
     # Create start and end node
@@ -500,7 +493,9 @@ def pathfinder (start: tuple,end: tuple,graph: Graph,clock=0,shelf: bool =False)
         # Found the goal
         if current_node == end_node:
             final_path = return_path(current_node)
-            graph.fill_occupation_with_path(final_path,clock=clock)
+            end_clock = graph.fill_occupation_with_path(final_path,clock=clock,return_end_clock=return_end_clock)
+            if return_end_clock :
+                return final_path,end_clock
             return final_path
 
         # Children
