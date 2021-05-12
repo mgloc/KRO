@@ -18,7 +18,7 @@ sin ={0:0,90:1,180:0,270:-1,360:0}
 
 robot_list = []
 shelf_list = []
-occupied_node = [] #liste des noeuds occupés de manières permanante inaccessible par pathfinding
+reservation_list = []
 
 clock = 0
 
@@ -142,9 +142,11 @@ class controller :
         assert robot in robot_list
         assert shelf in shelf_list
         if robot.is_available_path() and robot.is_available_pick_up() :
-            chemin_armoire,end_clock = m_star.pathfinder(robot.coord,shelf.coord,self.graph,clock,return_end_clock=True,robot_coord_list=[r.coord for r in robot_list if r.is_available_path(log_error=False)])
+            global reservation_list
+            reservation_list = [r.reservation for r in robot_list]
+            chemin_armoire,end_clock = m_star.pathfinder(robot.coord,shelf.coord,self.graph,clock,return_end_clock=True,robot_coord_list=reservation_list)
             end_clock += database.pick_move_time
-            chemin_coord = m_star.pathfinder(shelf.coord,coord,self.graph,end_clock,custom_clock=True,shelf=True,shelf_coord_list=[s.coord for s in shelf_list],robot_coord_list=[r.coord for r in robot_list if r.is_available_path(log_error=False)]) 
+            chemin_coord = m_star.pathfinder(shelf.coord,coord,self.graph,end_clock,custom_clock=True,shelf=True,shelf_coord_list=[s.coord for s in shelf_list],robot_coord_list=reservation_list) 
             robot.send_path(chemin_armoire + [shelf] + chemin_coord)
 
     #Creation---------------------------------------------
@@ -158,7 +160,7 @@ class controller :
 
 def spawn_k_shelf(k):
 
-    if k<=2 :
+    if k<=20 :
         coord = (20,20)
     else :
         coord = (k,k)
@@ -170,8 +172,9 @@ def spawn_k_shelf(k):
         my_ctrl.new_robot((i,0))
         my_ctrl.new_shelf((i,10))
     
-    pod_list = [(i,19) for i in range(k)]
-    pod_list[k-2],pod_list[k-1]=pod_list[k-1],pod_list[k-2]
+    pod_list = [(i+1,19) for i in range(k-1)]
+    pod_list.append((0,19))
+    #pod_list[k-2],pod_list[k-1]=pod_list[k-1],pod_list[k-2]
 
     for i in range(k):
         time.sleep(0.1)
@@ -216,12 +219,4 @@ def spawn_k_random(k):
 ####################################################################################
 if __name__ == "__main__" :
 
-    # my_ctrl = controller()
-    # my_ctrl.new_robot()
-    # my_ctrl.new_shelf(coord=(5,5))
-    # time.sleep(1)
-    # my_ctrl.send_robot_pick_up(robot_list[0],shelf_list[0],(10,10))
-    #TODO Idée pour vérifier la source d'erreur avec progression linéaire sur le décalage du segment en fonction du nombre de path lancées
-
-    spawn_k_random(50)
-
+    spawn_k_random(30)

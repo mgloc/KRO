@@ -270,7 +270,7 @@ class Node(occupation_list) :
 
         for seg in liste_des_temps_libres.occupation :
             x,y = seg[0],seg[1]
-            if y-x < database.max_move :
+            if y-x < database.max_move + database.horizontally_move_time :
                 continue
 
             v_node = Node(c1,c2)
@@ -417,7 +417,7 @@ class Graph :
             if type(coord[0]) == float or type(coord[1]) == float :
                 continue
             noeud = self.matrice[coord[0]][coord[1]]
-            noeud.is_accessible = False
+            noeud.accessible = False
 
     def reset_all_nodes(self):
         for ligne in self.matrice :
@@ -436,7 +436,7 @@ def return_path(current_node):
     path = []
     current = current_node
     while current is not None:
-        path.append((current.coord,current.wait,current.g))
+        path.append((current.coord,current.wait))
         current = current.parent
     return path[::-1]  # Return reversed path
 
@@ -543,14 +543,14 @@ def pathfinder (start: tuple,end: tuple,graph: Graph,clock=0,shelf:bool = False,
             if shelf and node.have_shelf :
                 continue
 
-            #Skip if this node is not obstruated
+            #Skip if this node is obstruated
             if not(node.accessible) :
                 continue
 
             #Append
             children.append(node)
 
-        #! Loop through children
+        #! Loop through valid children
         for child in children:
             
             # Child is on the closed list

@@ -2,7 +2,7 @@
 
 margin_error           = 500        #ms
 horizontally_move_time = 500      #ms
-rotation_move_time     = 500  #ms
+rotation_move_time     = 600  #ms
 rotation_move_half_time=rotation_move_time/2
 pick_move_time         = 400 #ms
 pick_move_half_time    = pick_move_time/2

@@ -8,8 +8,7 @@ import time
 import database
 ##############################: GLOBAL VARIABLES :###################
 
-active_robot = []
-passive_robot = [] #TODO ce probleme de merde
+
 
 #############################: CLASS :###############################
      
@@ -57,6 +56,9 @@ class robot(threading.Thread) :
 
         #Shelf relationship
         self.carried_shelf = None
+
+        #Asset reservation
+        self.reservation = self.coord
 
         #Thread variables
         self.is_active = True
@@ -169,6 +171,20 @@ class robot(threading.Thread) :
 
     #Path---------------------------------
     def send_path(self,chemin):
+        if len(chemin) == 0 :
+            return None
+        
+        #On prends le dernier élément dans chemin qui correspond à des coordonées pour reserver l'emplacement pour le robot
+        n = len(chemin)
+        i = 1
+        final = chemin[-i]
+        while type(final) != tuple and i < n :
+            i = i+1
+            final = chemin[-i]
+
+        if i != n :
+            self.reservation = chemin[-i][0]
+
         self.request_follow_path = chemin
 
     def is_available_path(self,log_error=True):
